@@ -457,11 +457,6 @@
     transition: all 0.2s;
 }
 
-/* Grey out saat value kosong (placeholder) */
-.asset-filter-select.placeholder { color: #94a3b8; }
-.asset-filter-select option { color: #334155; }
-.asset-filter-select option[value=""] { color: #94a3b8; }
-
 .asset-filter-select:focus {
     outline: none;
     border-color: #6366f1;
@@ -690,7 +685,7 @@
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     font-size: 14px;
-    color: #334155;
+    color: #94a3b8;
     background-color: white;
     cursor: pointer;
     transition: all 0.2s;
@@ -701,11 +696,6 @@
     background-position: right 14px center;
     background-size: 16px 16px;
 }
-
-/* Grey out saat placeholder */
-.add-asset-select.placeholder { color: #94a3b8; }
-.add-asset-select option { color: #334155; }
-.add-asset-select option[value=""] { color: #94a3b8; }
 
 .add-asset-select:focus {
     outline: none;

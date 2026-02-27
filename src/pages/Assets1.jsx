@@ -481,7 +481,6 @@ function Assets() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [addAssetOpen, setAddAssetOpen] = useState(false)
   const [assets, setAssets] = useState([])
-  const [searchQuery, setSearchQuery] = useState('')
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const filterBtnRef = useRef(null)
 
@@ -502,29 +501,6 @@ function Assets() {
 
   useEffect(() => { fetchAssets() }, [])
 
-  // Filter assets berdasarkan search query (frontend only)
-  const displayedAssets = searchQuery.trim()
-    ? assets.filter(a =>
-        a.asset_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : assets
-
-  // Highlight teks yang cocok dengan search query
-  const highlightText = (text, query) => {
-    if (!query.trim() || !text) return <strong>{text}</strong>
-    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
-    const parts = text.split(regex)
-    return (
-      <strong>
-        {parts.map((part, i) =>
-          regex.test(part)
-            ? <mark key={i} style={{ backgroundColor: '#fde68a', color: '#92400e', borderRadius: '2px', padding: '0 1px' }}>{part}</mark>
-            : part
-        )}
-      </strong>
-    )
-  }
-
   return (
     <>
       <div className="assets-wrapper">
@@ -542,8 +518,7 @@ function Assets() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
               </svg>
-              <input type="text" placeholder="Search" className="search-input"
-                value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <input type="text" placeholder="Search" className="search-input" />
             </div>
           </div>
           <div className="toolbar-actions">
@@ -575,7 +550,7 @@ function Assets() {
                 </tr>
               </thead>
               <tbody>
-                {displayedAssets.length === 0 ? (
+                {assets.length === 0 ? (
                   <tr className="empty-row">
                     <td colSpan="10">
                       <div className="empty-state">
@@ -585,7 +560,7 @@ function Assets() {
                     </td>
                   </tr>
                 ) : (
-                  displayedAssets.map(a => {
+                  assets.map(a => {
                     // Format date: ambil hanya bagian tanggal (YYYY-MM-DD)
                     const expiredDate = a.expired_date_silo
                       ? new Date(a.expired_date_silo).toISOString().split('T')[0]
@@ -618,7 +593,7 @@ function Assets() {
                             {a.asset_status}
                           </span>
                         </td>
-                        <td>{highlightText(a.asset_name, searchQuery)}</td>
+                        <td><strong>{a.asset_name}</strong></td>
                         <td>{a.category}</td>
                         <td>{a.type}</td>
                         <td>{a.model}</td>
