@@ -77,7 +77,7 @@ function AssetFilterSidebar({ isOpen, onClose }) {
             <label className="asset-filter-label">Status</label>
             <select className="asset-filter-select">
               <option value="">All</option>
-              {['Disposed', 'In Use', 'Standby', 'Under Maintenance'].map(o => <option key={o}>{o}</option>)}
+              {['Standby', 'In Use', 'Under Maintenance', 'Disposed'].map(o => <option key={o}>{o}</option>)}
             </select>
           </div>
           <div className="asset-filter-section-title">More Informations</div>
@@ -193,7 +193,20 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
   }
 
   const handleSubmit = () => {
+    // Validasi semua field wajib
     if (!form.tag_number) return alert('Tag Number wajib diisi!')
+    if (!selectedCategoryId) return alert('Category wajib dipilih!')
+    if (!form.asset_type_id) return alert('Type wajib dipilih!')
+    if (!form.asset_name) return alert('Name wajib diisi!')
+    if (!form.model) return alert('Model wajib diisi!')
+    if (!form.serial_number) return alert('Serial Number wajib diisi!')
+    if (!form.production_year) return alert('Production Year wajib diisi!')
+    if (!form.acquisition_year) return alert('Acquisition Year wajib diisi!')
+    if (!form.capacity) return alert('Capacity wajib diisi!')
+    if (!form.criticality) return alert('Criticality wajib dipilih!')
+    if (!form.asset_status) return alert('Status wajib dipilih!')
+    if (!form.expired_date_silo) return alert('Expired Date Silo wajib diisi!')
+    if (!form.asset_manufacturer_id) return alert('Manufacturer wajib dipilih!')
 
     fetch(`${API}/api/assets`, {
       method: 'POST',
@@ -201,9 +214,13 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
       body: JSON.stringify(form)
     })
       .then(r => r.json())
-      .then(() => {
-        handleClose()
-        onSuccess() // refresh tabel
+      .then(data => {
+        if (data.asset_id) {
+          handleClose()
+          onSuccess()
+        } else {
+          alert(data.message || 'Gagal menambahkan asset')
+        }
       })
       .catch(err => alert('Gagal menambahkan asset: ' + err.message))
   }
@@ -294,7 +311,7 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
               <select className="add-asset-select" value={form.asset_status}
                 onChange={e => handleChange('asset_status', e.target.value)}>
                 <option value="" disabled>Status</option>
-                {['Disposed', 'In Use', 'Standby', 'Under Maintenance'].map(o => <option key={o}>{o}</option>)}
+                {['Active', 'Inactive', 'Under Maintenance'].map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
           </div>
