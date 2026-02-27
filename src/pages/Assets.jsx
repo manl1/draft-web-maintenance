@@ -77,7 +77,7 @@ function AssetFilterSidebar({ isOpen, onClose }) {
             <label className="asset-filter-label">Status</label>
             <select className="asset-filter-select">
               <option value="">All</option>
-              {['Active', 'Inactive', 'Under Maintenance'].map(o => <option key={o}>{o}</option>)}
+              {['Disposed', 'In Use', 'Standby', 'Under Maintenance'].map(o => <option key={o}>{o}</option>)}
             </select>
           </div>
           <div className="asset-filter-section-title">More Informations</div>
@@ -363,8 +363,11 @@ function Assets() {
   const fetchAssets = () => {
     fetch(`${API}/api/assets`)
       .then(r => r.json())
-      .then(setAssets)
-      .catch(console.error)
+      .then(data => {
+        if (Array.isArray(data)) setAssets(data)
+        else setAssets([])
+      })
+      .catch(() => setAssets([]))
   }
 
   useEffect(() => { fetchAssets() }, [])
