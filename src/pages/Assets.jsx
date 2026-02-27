@@ -77,7 +77,7 @@ function AssetFilterSidebar({ isOpen, onClose }) {
             <label className="asset-filter-label">Status</label>
             <select className="asset-filter-select">
               <option value="">All</option>
-              {['Standby', 'In Use', 'Under Maintenance', 'Disposed'].map(o => <option key={o}>{o}</option>)}
+              {['Active', 'Inactive', 'Under Maintenance'].map(o => <option key={o}>{o}</option>)}
             </select>
           </div>
           <div className="asset-filter-section-title">More Informations</div>
@@ -451,13 +451,46 @@ function Assets() {
                   assets.map(a => (
                     <tr key={a.asset_id}>
                       <td>{a.tag_number}</td>
-                      <td>{a.asset_name}</td>
+                      <td><strong>{a.asset_name}</strong></td>
                       <td>{a.category}</td>
                       <td>{a.type}</td>
                       <td>{a.model}</td>
                       <td>{a.capacity}</td>
-                      <td>{a.criticality}</td>
-                      <td>{a.asset_status}</td>
+                      <td>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: 'white',
+                          textTransform: 'uppercase',
+                          backgroundColor:
+                            a.criticality === 'Low' ? '#22c55e' :
+                            a.criticality === 'Medium' ? '#eab308' :
+                            a.criticality === 'High' ? '#ef4444' : '#94a3b8'
+                        }}>
+                          {a.criticality}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: 'white',
+                          textTransform: 'uppercase',
+                          backgroundColor:
+                            a.asset_status === 'Standby' ? '#22c55e' :
+                            a.asset_status === 'In Use' ? '#3b82f6' :
+                            a.asset_status === 'Under Maintenance' ? '#eab308' :
+                            a.asset_status === 'Disposed' ? '#ef4444' : '#94a3b8'
+                        }}>
+                          {a.asset_status}
+                        </span>
+                      </td>
                       <td>{a.expired_date_silo}</td>
                       <td>{a.asset_remarks}</td>
                     </tr>
