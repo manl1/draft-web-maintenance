@@ -311,7 +311,7 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
               <select className="add-asset-select" value={form.asset_status}
                 onChange={e => handleChange('asset_status', e.target.value)}>
                 <option value="" disabled>Status</option>
-                {['Active', 'Inactive', 'Under Maintenance'].map(o => <option key={o}>{o}</option>)}
+                {['Standby', 'In Use', 'Under Maintenance', 'Disposed'].map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
           </div>
