@@ -38,14 +38,14 @@ function AssetFilterSidebar({ isOpen, onClose, onApply }) {
     fetch(`${API}/api/asset-manufacturers`).then(r => r.json()).then(setManufacturers).catch(console.error)
   }, [visible])
 
-  // Fetch types saat category berubah
+  // Fetch types when category changes
   useEffect(() => {
     if (!filters.asset_category_id) { setTypes([]); return }
     fetch(`${API}/api/asset-types/${filters.asset_category_id}`)
       .then(r => r.json()).then(setTypes).catch(console.error)
   }, [filters.asset_category_id])
 
-  // Flatpickr untuk date inputs
+  // Flatpickr for date inputs
   useEffect(() => {
     if (!visible) return
     fpRefs.current.forEach(fp => fp?.destroy())
@@ -145,7 +145,7 @@ function AssetFilterSidebar({ isOpen, onClose, onApply }) {
               onChange={e => setFilter('asset_type_id', e.target.value)}
               disabled={!filters.asset_category_id}>
               <option value="">
-                {!filters.asset_category_id ? 'Pilih Category dulu' : 'Search type...'}
+                {!filters.asset_category_id ? 'Select a category first' : 'Search type...'}
               </option>
               {types.map(t => (
                 <option key={t.asset_type_id} value={t.asset_type_id}>{t.asset_type_name}</option>
@@ -235,7 +235,7 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
   const acqFpRef = useRef(null)
   const expFpRef = useRef(null)
 
-  // Fetch categories & manufacturers saat modal dibuka
+  // Fetch categories & manufacturers when modal opens
   useEffect(() => {
     if (!isOpen) return
     setAnimClass('animating-in')
@@ -255,7 +255,7 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
       .then(r => r.json()).then(setManufacturers).catch(console.error)
   }, [isOpen])
 
-  // Fetch types saat category berubah
+  // Fetch types when category changes
   useEffect(() => {
     if (!selectedCategoryId) { setTypes([]); return }
     fetch(`${API}/api/asset-types/${selectedCategoryId}`)
@@ -300,20 +300,20 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
   }
 
   const handleSubmit = () => {
-    // Validasi semua field wajib
-    if (!form.tag_number) return alert('Tag Number wajib diisi!')
-    if (!selectedCategoryId) return alert('Category wajib dipilih!')
-    if (!form.asset_type_id) return alert('Type wajib dipilih!')
-    if (!form.asset_name) return alert('Name wajib diisi!')
-    if (!form.model) return alert('Model wajib diisi!')
-    if (!form.serial_number) return alert('Serial Number wajib diisi!')
-    if (!form.production_year) return alert('Production Year wajib diisi!')
-    if (!form.acquisition_year) return alert('Acquisition Year wajib diisi!')
-    if (!form.capacity) return alert('Capacity wajib diisi!')
-    if (!form.criticality) return alert('Criticality wajib dipilih!')
-    if (!form.asset_status) return alert('Status wajib dipilih!')
-    if (!form.expired_date_silo) return alert('Expired Date Silo wajib diisi!')
-    if (!form.asset_manufacturer_id) return alert('Manufacturer wajib dipilih!')
+    // Validate required fields
+    if (!form.tag_number) return alert('Tag Number is required!')
+    if (!selectedCategoryId) return alert('Category is required!')
+    if (!form.asset_type_id) return alert('Type is required!')
+    if (!form.asset_name) return alert('Name is required!')
+    if (!form.model) return alert('Model is required!')
+    if (!form.serial_number) return alert('Serial Number is required!')
+    if (!form.production_year) return alert('Production Year is required!')
+    if (!form.acquisition_year) return alert('Acquisition Year is required!')
+    if (!form.capacity) return alert('Capacity is required!')
+    if (!form.criticality) return alert('Criticality is required!')
+    if (!form.asset_status) return alert('Status is required!')
+    if (!form.expired_date_silo) return alert('Expired Date Silo is required!')
+    if (!form.asset_manufacturer_id) return alert('Manufacturer is required!')
 
     fetch(`${API}/api/assets`, {
       method: 'POST',
@@ -326,10 +326,10 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
           handleClose()
           onSuccess()
         } else {
-          alert(data.message || 'Gagal menambahkan asset')
+          alert(data.message || 'Failed to add asset')
         }
       })
-      .catch(err => alert('Gagal menambahkan asset: ' + err.message))
+      .catch(err => alert('Failed to add asset: ' + err.message))
   }
 
   if (!isOpen) return null
@@ -380,7 +380,7 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
                 onChange={e => handleChange('asset_type_id', e.target.value)}
                 disabled={!selectedCategoryId}>
                 <option value="" disabled>
-                  {!selectedCategoryId ? 'Pilih Category dulu' : 'Type'}
+                  {!selectedCategoryId ? 'Select a category first' : 'Type'}
                 </option>
                 {types.map(t => (
                   <option key={t.asset_type_id} value={t.asset_type_id}>
@@ -476,40 +476,448 @@ function AddAssetModal({ isOpen, onClose, onSuccess }) {
   )
 }
 
-// ===== Main Assets Page =====
+// ===== Asset Detail Panel =====
+function AssetDetailPanel({ asset, onClose, onEdit, onDelete }) {
+  const [visible, setVisible] = useState(false)
+  const [closing, setClosing] = useState(false)
+
+  useEffect(() => {
+    if (asset) { setVisible(true); setClosing(false) }
+  }, [asset])
+
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(() => { setVisible(false); setClosing(false); onClose() }, 350)
+  }
+
+  if (!visible || !asset) return null
+
+  const formatDate = (d) => d ? new Date(d).toISOString().split('T')[0] : '-'
+
+  const statusColor =
+    asset.asset_status === 'Standby' ? '#22c55e' :
+    asset.asset_status === 'In Use' ? '#3b82f6' :
+    asset.asset_status === 'Under Maintenance' ? '#eab308' :
+    asset.asset_status === 'Disposed' ? '#ef4444' : '#94a3b8'
+
+  const critColor =
+    asset.criticality === 'Low' ? '#22c55e' :
+    asset.criticality === 'Medium' ? '#eab308' :
+    asset.criticality === 'High' ? '#ef4444' : '#94a3b8'
+
+  return (
+    <>
+      <div className={`asset-detail-overlay active ${closing ? 'closing' : ''}`} onClick={handleClose} />
+      <div className={`asset-detail-panel ${!closing ? 'active' : ''} ${closing ? 'closing' : ''}`}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="asset-detail-header">
+          <div className="asset-detail-title-area">
+            <h2 className="asset-detail-name">{asset.asset_name}</h2>
+            <p className="asset-detail-tag">{asset.tag_number}</p>
+          </div>
+          <div className="asset-detail-actions">
+            <button className="asset-detail-edit-btn" onClick={() => { handleClose(); onEdit(asset) }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button className="asset-detail-delete-btn" onClick={() => { handleClose(); onDelete(asset) }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="asset-detail-body">
+
+          {/* Status & Criticality badges */}
+          <div className="asset-detail-badges">
+            <span style={{ backgroundColor: statusColor }} className="asset-detail-badge">
+              {asset.asset_status}
+            </span>
+            <span style={{ backgroundColor: critColor }} className="asset-detail-badge">
+              {asset.criticality}
+            </span>
+          </div>
+
+          {/* Asset Information */}
+          <div className="asset-detail-section-title">Asset Information</div>
+          <div className="asset-detail-grid">
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Tag Number</span>
+              <span className="asset-detail-value">{asset.tag_number || '-'}</span>
+            </div>
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Name</span>
+              <span className="asset-detail-value">{asset.asset_name || '-'}</span>
+            </div>
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Category</span>
+              <span className="asset-detail-value">{asset.category || '-'}</span>
+            </div>
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Type</span>
+              <span className="asset-detail-value">{asset.type || '-'}</span>
+            </div>
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Model</span>
+              <span className="asset-detail-value">{asset.model || '-'}</span>
+            </div>
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Capacity</span>
+              <span className="asset-detail-value">{asset.capacity || '-'}</span>
+            </div>
+          </div>
+
+          {/* More Information */}
+          <div className="asset-detail-section-title">More Information</div>
+          <div className="asset-detail-grid">
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Serial Number</span>
+              <span className="asset-detail-value">{asset.serial_number || '-'}</span>
+            </div>
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Manufacturer</span>
+              <span className="asset-detail-value">{asset.manufacturer || '-'}</span>
+            </div>
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Production Year</span>
+              <span className="asset-detail-value">{formatDate(asset.production_year)}</span>
+            </div>
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Acquisition Year</span>
+              <span className="asset-detail-value">{formatDate(asset.acquisition_year)}</span>
+            </div>
+            <div className="asset-detail-field">
+              <span className="asset-detail-label">Expired Date Silo</span>
+              <span className="asset-detail-value">{formatDate(asset.expired_date_silo)}</span>
+            </div>
+            <div className="asset-detail-field asset-detail-field--full">
+              <span className="asset-detail-label">Remarks</span>
+              <span className="asset-detail-value">{asset.asset_remarks || '-'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ===== Edit Asset Modal =====
+function EditAssetModal({ isOpen, asset, onClose, onSuccess }) {
+  const [animClass, setAnimClass] = useState('animating-in')
+  const [categories, setCategories] = useState([])
+  const [types, setTypes] = useState([])
+  const [manufacturers, setManufacturers] = useState([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState('')
+  const [form, setForm] = useState({})
+  const prodYearRef = useRef(null); const acqYearRef = useRef(null); const expiredRef = useRef(null)
+  const prodFpRef = useRef(null);   const acqFpRef = useRef(null);   const expFpRef = useRef(null)
+
+  useEffect(() => {
+    if (!isOpen || !asset) return
+    setAnimClass('animating-in')
+
+    setForm({
+      tag_number: asset.tag_number || '',
+      asset_name: asset.asset_name || '',
+      asset_type_id: asset.asset_type_id ? String(asset.asset_type_id) : '',
+      asset_manufacturer_id: asset.asset_manufacturer_id ? String(asset.asset_manufacturer_id) : '',
+      model: asset.model || '',
+      serial_number: asset.serial_number || '',
+      production_year: asset.production_year ? new Date(asset.production_year).toISOString().split('T')[0] : '',
+      acquisition_year: asset.acquisition_year ? new Date(asset.acquisition_year).toISOString().split('T')[0] : '',
+      capacity: asset.capacity || '',
+      criticality: asset.criticality || '',
+      asset_status: asset.asset_status || '',
+      expired_date_silo: asset.expired_date_silo ? new Date(asset.expired_date_silo).toISOString().split('T')[0] : '',
+      asset_remarks: asset.asset_remarks || ''
+    })
+
+    // Set category directly from data (asset_category_id already present from query)
+    if (asset.asset_category_id) setSelectedCategoryId(String(asset.asset_category_id))
+
+    fetch(`${API}/api/asset-categories`).then(r => r.json()).then(setCategories).catch(console.error)
+    fetch(`${API}/api/asset-manufacturers`).then(r => r.json()).then(setManufacturers).catch(console.error)
+  }, [isOpen, asset])
+
+  // Fetch types when selectedCategoryId changes
+  useEffect(() => {
+    if (!selectedCategoryId) { setTypes([]); return }
+    fetch(`${API}/api/asset-types/${selectedCategoryId}`)
+      .then(r => r.json()).then(setTypes).catch(console.error)
+  }, [selectedCategoryId])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const config = { dateFormat: 'Y-m-d', allowInput: true }
+    if (prodYearRef.current) {
+      prodFpRef.current = flatpickr(prodYearRef.current, { ...config,
+        defaultDate: form.production_year || null,
+        onChange: ([d]) => setForm(f => ({ ...f, production_year: d ? d.toISOString().split('T')[0] : '' }))
+      })
+    }
+    if (acqYearRef.current) {
+      acqFpRef.current = flatpickr(acqYearRef.current, { ...config,
+        defaultDate: form.acquisition_year || null,
+        onChange: ([d]) => setForm(f => ({ ...f, acquisition_year: d ? d.toISOString().split('T')[0] : '' }))
+      })
+    }
+    if (expiredRef.current) {
+      expFpRef.current = flatpickr(expiredRef.current, { ...config,
+        defaultDate: form.expired_date_silo || null,
+        onChange: ([d]) => setForm(f => ({ ...f, expired_date_silo: d ? d.toISOString().split('T')[0] : '' }))
+      })
+    }
+    return () => { prodFpRef.current?.destroy(); acqFpRef.current?.destroy(); expFpRef.current?.destroy() }
+  }, [isOpen])
+
+  const handleChange = (field, value) => setForm(f => ({ ...f, [field]: value }))
+
+  const handleClose = () => {
+    setAnimClass('animating-out')
+    setTimeout(() => { onClose(); setAnimClass('animating-in') }, 200)
+  }
+
+  const handleSubmit = () => {
+    if (!form.tag_number) return alert('Tag Number is required!')
+    if (!form.asset_type_id) return alert('Type is required!')
+    if (!form.asset_name) return alert('Name is required!')
+    if (!form.asset_manufacturer_id) return alert('Manufacturer is required!')
+
+    fetch(`${API}/api/assets/${asset.asset_id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.message?.includes('successfully')) { handleClose(); onSuccess() }
+        else alert(data.message || 'Failed to update asset')
+      })
+      .catch(err => alert('Error: ' + err.message))
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="add-asset-overlay active" onClick={handleClose}>
+      <div className={`add-asset-modal ${animClass}`} onClick={e => e.stopPropagation()}>
+        <div className="add-asset-header">
+          <h2>Edit Asset</h2>
+          <p>Update the fields below to edit this asset</p>
+        </div>
+        <div className="add-asset-body">
+          <div className="add-asset-section-title">Asset Information</div>
+          <div className="add-asset-row">
+            <div className="add-asset-field">
+              <label className="add-asset-label">Tag Number *</label>
+              <input type="text" className="add-asset-input" placeholder="Tag Number"
+                value={form.tag_number || ''} onChange={e => handleChange('tag_number', e.target.value)} />
+            </div>
+            <div className="add-asset-field">
+              <label className="add-asset-label">Name</label>
+              <input type="text" className="add-asset-input" placeholder="Name"
+                value={form.asset_name || ''} onChange={e => handleChange('asset_name', e.target.value)} />
+            </div>
+          </div>
+          <div className="add-asset-row">
+            <div className="add-asset-field">
+              <label className="add-asset-label">Category</label>
+              <select className={`add-asset-select${!selectedCategoryId ? ' placeholder' : ''}`}
+                value={selectedCategoryId}
+                onChange={e => { setSelectedCategoryId(e.target.value); handleChange('asset_type_id', '') }}>
+                <option value="" disabled>Category</option>
+                {categories.map(c => <option key={c.asset_category_id} value={c.asset_category_id}>{c.asset_category_name}</option>)}
+              </select>
+            </div>
+            <div className="add-asset-field">
+              <label className="add-asset-label">Type</label>
+              <select className={`add-asset-select${!form.asset_type_id ? ' placeholder' : ''}`}
+                value={form.asset_type_id || ''}
+                onChange={e => handleChange('asset_type_id', e.target.value)}
+                disabled={!selectedCategoryId}>
+                <option value="" disabled>{!selectedCategoryId ? 'Select a category first' : 'Type'}</option>
+                {types.map(t => <option key={t.asset_type_id} value={t.asset_type_id}>{t.asset_type_name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="add-asset-row">
+            <div className="add-asset-field">
+              <label className="add-asset-label">Model</label>
+              <input type="text" className="add-asset-input" placeholder="Model"
+                value={form.model || ''} onChange={e => handleChange('model', e.target.value)} />
+            </div>
+            <div className="add-asset-field">
+              <label className="add-asset-label">Capacity</label>
+              <input type="text" className="add-asset-input" placeholder="Capacity"
+                value={form.capacity || ''} onChange={e => handleChange('capacity', e.target.value)} />
+            </div>
+          </div>
+          <div className="add-asset-row">
+            <div className="add-asset-field">
+              <label className="add-asset-label">Criticality</label>
+              <select className={`add-asset-select${!form.criticality ? ' placeholder' : ''}`}
+                value={form.criticality || ''} onChange={e => handleChange('criticality', e.target.value)}>
+                <option value="" disabled>Criticality</option>
+                {['Low', 'Medium', 'High'].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            <div className="add-asset-field">
+              <label className="add-asset-label">Status</label>
+              <select className={`add-asset-select${!form.asset_status ? ' placeholder' : ''}`}
+                value={form.asset_status || ''} onChange={e => handleChange('asset_status', e.target.value)}>
+                <option value="" disabled>Status</option>
+                {['Standby', 'In Use', 'Under Maintenance', 'Disposed'].map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="add-asset-section-title">More Informations</div>
+          <div className="add-asset-row">
+            <div className="add-asset-field">
+              <label className="add-asset-label">Serial Number</label>
+              <input type="text" className="add-asset-input" placeholder="Serial Number"
+                value={form.serial_number || ''} onChange={e => handleChange('serial_number', e.target.value)} />
+            </div>
+            <div className="add-asset-field">
+              <label className="add-asset-label">Manufacturer</label>
+              <select className={`add-asset-select${!form.asset_manufacturer_id ? ' placeholder' : ''}`}
+                value={form.asset_manufacturer_id || ''} onChange={e => handleChange('asset_manufacturer_id', e.target.value)}>
+                <option value="" disabled>Manufacturer</option>
+                {manufacturers.map(m => <option key={m.asset_manufacturer_id} value={m.asset_manufacturer_id}>{m.asset_manufacturer_name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="add-asset-row">
+            <div className="add-asset-field">
+              <label className="add-asset-label">Production Year</label>
+              <input ref={prodYearRef} type="text" className="add-asset-input" placeholder="mm/dd/yyyy" />
+            </div>
+            <div className="add-asset-field">
+              <label className="add-asset-label">Acquisition Year</label>
+              <input ref={acqYearRef} type="text" className="add-asset-input" placeholder="mm/dd/yyyy" />
+            </div>
+          </div>
+          <div className="add-asset-field">
+            <label className="add-asset-label">Expired Date Silo</label>
+            <input ref={expiredRef} type="text" className="add-asset-input" placeholder="mm/dd/yyyy" />
+          </div>
+          <div className="add-asset-field">
+            <label className="add-asset-label">Remarks</label>
+            <textarea className="add-asset-textarea" placeholder="Remarks"
+              value={form.asset_remarks || ''} onChange={e => handleChange('asset_remarks', e.target.value)} />
+          </div>
+        </div>
+        <div className="add-asset-footer">
+          <button className="add-asset-submit-btn" onClick={handleSubmit}>Edit</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ===== Delete Confirm Modal =====
+function DeleteConfirmModal({ isOpen, asset, onClose, onSuccess }) {
+  const [animClass, setAnimClass] = useState('animating-in')
+
+  useEffect(() => { if (isOpen) setAnimClass('animating-in') }, [isOpen])
+
+  const handleClose = () => {
+    setAnimClass('animating-out')
+    setTimeout(() => { onClose(); setAnimClass('animating-in') }, 200)
+  }
+
+  const handleDelete = () => {
+    fetch(`${API}/api/assets/${asset.asset_id}`, { method: 'DELETE' })
+      .then(r => r.json())
+      .then(() => { handleClose(); onSuccess() })
+      .catch(err => alert('Failed to delete: ' + err.message))
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="add-asset-overlay active" onClick={handleClose}>
+      <div className={`asset-delete-modal ${animClass}`} onClick={e => e.stopPropagation()}>
+        <div className="asset-delete-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </div>
+        <h3 className="asset-delete-title">Delete Asset?</h3>
+        <p className="asset-delete-desc">
+          Are you sure you want to delete <strong>{asset?.asset_name}</strong>?
+          This action cannot be undone.
+        </p>
+        <div className="asset-delete-actions">
+          <button className="asset-delete-cancel-btn" onClick={handleClose}>Cancel</button>
+          <button className="asset-delete-confirm-btn" onClick={handleDelete}>Delete</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 function Assets() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [addAssetOpen, setAddAssetOpen] = useState(false)
+  const [selectedAsset, setSelectedAsset] = useState(null)
+  const [editAsset, setEditAsset] = useState(null)
+  const [deleteAsset, setDeleteAsset] = useState(null)
   const [assets, setAssets] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const filterBtnRef = useRef(null)
+  const scrollRef = useRef(null)
+
+  const [loading, setLoading] = useState(false)
 
   const fetchAssets = (filters = {}) => {
+    setLoading(true)
     const params = new URLSearchParams()
     Object.entries(filters).forEach(([key, val]) => {
       if (val !== '' && val !== null && val !== undefined) params.append(key, val)
     })
     const query = params.toString() ? `?${params.toString()}` : ''
+    const fetchStart = Date.now()
     fetch(`${API}/api/assets${query}`)
       .then(r => r.json())
       .then(data => {
-        if (Array.isArray(data)) setAssets(data)
-        else setAssets([])
+        const elapsed = Date.now() - fetchStart
+        const minDuration = 400 // show data at half animation duration
+        const remaining = Math.max(0, minDuration - elapsed)
+        setTimeout(() => {
+          if (Array.isArray(data)) setAssets(data)
+          else setAssets([])
+          setLoading(false)
+        }, remaining)
       })
-      .catch(() => setAssets([]))
+      .catch(() => {
+        setAssets([])
+        setLoading(false)
+      })
   }
 
   useEffect(() => { fetchAssets() }, [])
 
-  // Filter assets berdasarkan search query (frontend only)
+  // Filter assets by search query (frontend only)
   const displayedAssets = searchQuery.trim()
     ? assets.filter(a =>
         a.asset_name?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : assets
 
-  // Highlight teks yang cocok dengan search query
+  // Highlight text matching the search query
   const highlightText = (text, query) => {
     if (!query.trim() || !text) return <strong>{text}</strong>
     const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
@@ -548,7 +956,8 @@ function Assets() {
           </div>
           <div className="toolbar-actions">
             <button className="refresh-button" onClick={fetchAssets}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                style={{ animation: loading ? 'spin 0.8s linear infinite' : 'none' }}>
                 <polyline points="23 4 23 10 17 10" />
                 <polyline points="1 20 1 14 7 14" />
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -565,7 +974,7 @@ function Assets() {
 
         {/* Table */}
         <div className="table-container">
-          <div className="table-scroll">
+          <div className="table-scroll" ref={scrollRef}>
             <table className="assets-table">
               <thead>
                 <tr>
@@ -586,19 +995,20 @@ function Assets() {
                   </tr>
                 ) : (
                   displayedAssets.map(a => {
-                    // Format date: ambil hanya bagian tanggal (YYYY-MM-DD)
+                    // Format date: extract date part only (YYYY-MM-DD)
                     const expiredDate = a.expired_date_silo
                       ? new Date(a.expired_date_silo).toISOString().split('T')[0]
                       : '-'
 
-                    // Truncate teks lebih dari 27 karakter
+                    // Truncate text longer than 27 characters
                     const truncate = (text) => {
                       if (!text) return '-'
                       return text.length > 27 ? text.slice(0, 27) + '...' : text
                     }
 
                     return (
-                      <tr key={a.asset_id}>
+                      <tr key={a.asset_id} onClick={() => setSelectedAsset(a)}
+                        style={{ cursor: 'pointer' }}>
                         <td>{a.tag_number}</td>
                         <td>
                           <span style={{
@@ -652,30 +1062,26 @@ function Assets() {
           <div className="table-footer"></div>
         </div>
 
-        {/* Pagination */}
-        <div className="pagination">
-          <div className="pagination-info">
-            <span>Rows per page:</span>
-            <select className="rows-select" value={rowsPerPage} onChange={e => setRowsPerPage(e.target.value)}>
-              {[10, 25, 50, 100].map(n => <option key={n}>{n}</option>)}
-            </select>
-            <span className="page-info">0-0 of {assets.length}</span>
-          </div>
-          <div className="pagination-controls-left">
-            <button className="pagination-btn" disabled>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
-            </button>
-            <button className="pagination-btn" disabled>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
-            </button>
-          </div>
-        </div>
       </div>
 
       <AssetFilterSidebar isOpen={filterOpen} onClose={() => setFilterOpen(false)} onApply={fetchAssets} />
-      <AddAssetModal
-        isOpen={addAssetOpen}
-        onClose={() => setAddAssetOpen(false)}
+      <AddAssetModal isOpen={addAssetOpen} onClose={() => setAddAssetOpen(false)} onSuccess={fetchAssets} />
+      <AssetDetailPanel
+        asset={selectedAsset}
+        onClose={() => setSelectedAsset(null)}
+        onEdit={a => setEditAsset(a)}
+        onDelete={a => setDeleteAsset(a)}
+      />
+      <EditAssetModal
+        isOpen={!!editAsset}
+        asset={editAsset}
+        onClose={() => setEditAsset(null)}
+        onSuccess={fetchAssets}
+      />
+      <DeleteConfirmModal
+        isOpen={!!deleteAsset}
+        asset={deleteAsset}
+        onClose={() => setDeleteAsset(null)}
         onSuccess={fetchAssets}
       />
     </>
