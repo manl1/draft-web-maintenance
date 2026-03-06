@@ -8,6 +8,7 @@ const pageTitles = {
   '/work-order': 'Work Order',
   '/assets': 'Assets',
   '/locations': 'Locations',
+  '/tracking': 'Tracking',
 }
 
 function Layout() {

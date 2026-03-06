@@ -646,7 +646,6 @@ function Locations() {
   const [editMovement, setEditMovement] = useState(null)
   const [deleteMovement, setDeleteMovement] = useState(null)
   const [completeMovement, setCompleteMovement] = useState(null)
-  const [addNewLocOpen, setAddNewLocOpen] = useState(false)
   const fetchLocations = () => {
     setIsReady(false)
     setLoading(true)
@@ -947,12 +946,7 @@ function Locations() {
       <div className="locations-wrapper">
         <div className="loc-toolbar">
           <div className="loc-view-tabs">
-            <button className="loc-add-location-btn" onClick={() => setAddNewLocOpen(true)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Location
-            </button>
+            <button className="loc-tab-button active">List View</button>
             <div className="loc-search-container">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
@@ -994,7 +988,6 @@ function Locations() {
       </div>
 
       <AddLocationModal isOpen={addLocOpen} onClose={() => setAddLocOpen(false)} onSuccess={fetchLocations} />
-      <AddNewLocationModal isOpen={addNewLocOpen} onClose={() => setAddNewLocOpen(false)} onSuccess={fetchLocations} />
       <LocationDetailPanel
         movement={selectedMovement}
         onClose={() => setSelectedMovement(null)}
@@ -1021,160 +1014,6 @@ function Locations() {
         onSuccess={fetchLocations}
       />
     </>
-  )
-}
-
-// ===== Autocomplete Input Field =====
-function AutocompleteInput({ label, field, placeholder, value, onChange, suggestions, onSelect, activeField, setActiveField }) {
-  const ref = useRef(null)
-  const isActive = activeField === field
-  const filtered = suggestions.filter(s => s && s.toLowerCase().includes(value.toLowerCase()) && s.toLowerCase() !== value.toLowerCase())
-
-  useEffect(() => {
-    const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setActiveField(null) }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  return (
-    <div className="add-loc-field" ref={ref} style={{ position: 'relative' }}>
-      <label className="add-loc-label">{label}</label>
-      <input
-        type="text"
-        className="add-loc-input"
-        placeholder={placeholder}
-        value={value}
-        onChange={e => { onChange(e.target.value); setActiveField(field) }}
-        onFocus={() => setActiveField(field)}
-        autoComplete="off"
-      />
-      {isActive && filtered.length > 0 && (
-        <div className="loc-autocomplete-dropdown">
-          {filtered.slice(0, 8).map((s, i) => (
-            <div key={i} className="loc-autocomplete-item" onMouseDown={() => { onSelect(s); setActiveField(null) }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{ flexShrink: 0 }}>
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-              </svg>
-              {s}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ===== Add New Location Modal (insert to locations table) =====
-function AddNewLocationModal({ isOpen, onClose, onSuccess }) {
-  const [animClass, setAnimClass] = useState('animating-in')
-  const [form, setForm] = useState({ fl_code: '', city: '', site: '', area: '', sub_area: '' })
-  const [loading, setLoading] = useState(false)
-  const [suggestions, setSuggestions] = useState({ fl_code: [], city: [], site: [], area: [], sub_area: [] })
-  const [activeField, setActiveField] = useState(null)
-  const [dupWarning, setDupWarning] = useState(false)
-  const debounceRef = useRef({})
-
-  useEffect(() => {
-    if (!isOpen) return
-    setAnimClass('animating-in')
-    setForm({ fl_code: '', city: '', site: '', area: '', sub_area: '' })
-    setDupWarning(false)
-    setActiveField(null)
-    // Pre-fetch all distinct values on open
-    fetch(`${API}/api/locations/suggestions`).then(r => r.json()).then(data => {
-      setSuggestions(data)
-    }).catch(() => {})
-  }, [isOpen])
-
-  // Check duplicate whenever all key fields filled
-  useEffect(() => {
-    if (!form.site) { setDupWarning(false); return }
-    clearTimeout(debounceRef.current.dup)
-    debounceRef.current.dup = setTimeout(() => {
-      fetch(`${API}/api/locations/check-duplicate?site=${encodeURIComponent(form.site)}&area=${encodeURIComponent(form.area)}&sub_area=${encodeURIComponent(form.sub_area)}`)
-        .then(r => r.json())
-        .then(d => setDupWarning(d.exists))
-        .catch(() => {})
-    }, 400)
-  }, [form.site, form.area, form.sub_area])
-
-  const handleClose = () => {
-    setAnimClass('animating-out')
-    setTimeout(() => { onClose(); setAnimClass('animating-in') }, 200)
-  }
-
-  const setField = (field, value) => setForm(f => ({ ...f, [field]: value }))
-
-  const handleSubmit = async () => {
-    if (!form.site) return alert('Site is required!')
-    setLoading(true)
-    try {
-      const res = await fetch(`${API}/api/locations/new-location`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      })
-      const data = await res.json()
-      if (!res.ok) return alert(data.message || 'Failed to add location')
-      handleClose()
-      onSuccess()
-    } catch (err) {
-      alert('Error: ' + err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (!isOpen) return null
-
-  const fields = [
-    { label: 'FL Code', field: 'fl_code', placeholder: 'e.g. GSK-WSU01-DA' },
-    { label: 'City', field: 'city', placeholder: 'e.g. Gresik' },
-    { label: 'Site *', field: 'site', placeholder: 'e.g. Workshop Utama' },
-    { label: 'Area', field: 'area', placeholder: 'e.g. Demolition Area' },
-    { label: 'Sub Area', field: 'sub_area', placeholder: 'e.g. Area A' },
-  ]
-
-  return (
-    <div className="add-loc-overlay active" onClick={handleClose}>
-      <div className={`add-loc-modal ${animClass}`} style={{ width: '480px' }} onClick={e => e.stopPropagation()}>
-        <div className="add-loc-header">
-          <h2>Add New Location</h2>
-          <p>Add a new location entry to the database</p>
-        </div>
-        <div className="add-loc-body">
-          {fields.map(({ label, field, placeholder }) => (
-            <AutocompleteInput
-              key={field}
-              label={label}
-              field={field}
-              placeholder={placeholder}
-              value={form[field]}
-              onChange={val => setField(field, val)}
-              onSelect={val => setField(field, val)}
-              suggestions={suggestions[field] || []}
-              activeField={activeField}
-              setActiveField={setActiveField}
-            />
-          ))}
-
-          {dupWarning && (
-            <div className="loc-dup-warning">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-              <span>A location with this Site / Area / Sub Area already exists. Adding it may create a duplicate.</span>
-            </div>
-          )}
-        </div>
-        <div className="add-loc-footer">
-          <button className="add-loc-submit-btn" onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Saving...' : 'Add Location'}
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }
 

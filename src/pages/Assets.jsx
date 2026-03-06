@@ -876,6 +876,7 @@ function Assets() {
   const [deleteAsset, setDeleteAsset] = useState(null)
   const [assets, setAssets] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortOrder, setSortOrder] = useState(null) // null | 'asc' | 'desc'
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const filterBtnRef = useRef(null)
   const scrollRef = useRef(null)
@@ -911,11 +912,24 @@ function Assets() {
   useEffect(() => { fetchAssets() }, [])
 
   // Filter assets by search query (frontend only)
-  const displayedAssets = searchQuery.trim()
-    ? assets.filter(a =>
-        a.asset_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+  const getTagNum = (tag) => {
+    const match = String(tag || '').match(/(\d+)$/)
+    return match ? parseInt(match[1], 10) : 0
+  }
+
+  const filteredAssets = searchQuery.trim()
+    ? assets.filter(a => a.asset_name?.toLowerCase().includes(searchQuery.toLowerCase()))
     : assets
+
+  const displayedAssets = sortOrder
+    ? [...filteredAssets].sort((a, b) =>
+        sortOrder === 'asc'
+          ? getTagNum(a.tag_number) - getTagNum(b.tag_number)
+          : getTagNum(b.tag_number) - getTagNum(a.tag_number)
+      )
+    : filteredAssets
+
+  const toggleSort = () => setSortOrder(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')
 
   // Highlight text matching the search query
   const highlightText = (text, query) => {
@@ -978,7 +992,17 @@ function Assets() {
             <table className="assets-table">
               <thead>
                 <tr>
-                  <th>TAG</th><th>STATUS</th><th>NAME</th><th>CATEGORY</th><th>TYPE</th>
+                  <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={toggleSort}>
+                    TAG
+                    <span style={{ display: 'inline-flex', flexDirection: 'column', marginLeft: '6px', verticalAlign: 'middle', gap: '2px' }}>
+                      <svg width="8" height="6" viewBox="0 0 8 6" fill={sortOrder === 'asc' ? '#6366f1' : '#cbd5e1'}>
+                        <path d="M4 0L8 6H0L4 0Z"/>
+                      </svg>
+                      <svg width="8" height="6" viewBox="0 0 8 6" fill={sortOrder === 'desc' ? '#6366f1' : '#cbd5e1'}>
+                        <path d="M4 6L0 0H8L4 6Z"/>
+                      </svg>
+                    </span>
+                  </th><th>STATUS</th><th>NAME</th><th>CATEGORY</th><th>TYPE</th>
                   <th>MODEL</th><th>CAPACITY</th><th>CRITICALITY</th>
                   <th>EXPIRED DATE SILO</th><th>REMARKS</th>
                 </tr>
