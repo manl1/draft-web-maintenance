@@ -391,13 +391,13 @@ function HourMeterTab({ types }) {
       if (logDateStartRef.current) {
         logStartFp.current = flatpickr(logDateStartRef.current, {
           dateFormat: 'Y-m-d', allowInput: true,
-          onChange: ([d]) => setLogDateStart(d ? d.toISOString().split('T')[0] : '')
+          onChange: ([d]) => setLogDateStart(d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '')
         })
       }
       if (logDateEndRef.current) {
         logEndFp.current = flatpickr(logDateEndRef.current, {
           dateFormat: 'Y-m-d', allowInput: true,
-          onChange: ([d]) => setLogDateEnd(d ? d.toISOString().split('T')[0] : '')
+          onChange: ([d]) => setLogDateEnd(d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '')
         })
       }
     }, 50)
@@ -753,7 +753,19 @@ export default function Tracking() {
       disableMobile: true,
       positionElement: dateBtnRef.current,
       onChange: (dates) => {
-        setDateFilter(dates[0] ? dates[0].toISOString().split('T')[0] : new Date().toISOString().split('T')[0])
+        if (dates[0]) {
+          const d = dates[0]
+          const yyyy = d.getFullYear()
+          const mm = String(d.getMonth() + 1).padStart(2, '0')
+          const dd = String(d.getDate()).padStart(2, '0')
+          setDateFilter(`${yyyy}-${mm}-${dd}`)
+        } else {
+          const now = new Date()
+          const yyyy = now.getFullYear()
+          const mm = String(now.getMonth() + 1).padStart(2, '0')
+          const dd = String(now.getDate()).padStart(2, '0')
+          setDateFilter(`${yyyy}-${mm}-${dd}`)
+        }
       },
     })
     return () => dateFp.current?.destroy()

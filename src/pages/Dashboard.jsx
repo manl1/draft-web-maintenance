@@ -227,9 +227,13 @@ function LineChart({ data }) {
 
 // ─── Sub-components ────────────────────────────────────────
 
-function KpiCard({ label, value, sub, colorClass, icon }) {
+function KpiCard({ label, value, sub, colorClass, icon, onClick, clickable }) {
   return (
-    <div className={`kpi-card ${colorClass}`}>
+    <div
+      className={`kpi-card ${colorClass}${clickable ? ' kpi-card-clickable' : ''}`}
+      onClick={onClick}
+      style={clickable ? { cursor: 'pointer' } : {}}
+    >
       <div className="kpi-icon">{icon}</div>
       <div className="kpi-label">{label}</div>
       <div className="kpi-value">{value}</div>
@@ -238,7 +242,535 @@ function KpiCard({ label, value, sub, colorClass, icon }) {
   )
 }
 
-// KPI SVG icons
+// ─── Asset List Modal ───────────────────────────────────────
+const STATUS_ORDER = ['Standby']
+
+function AssetListModal({ isOpen, onClose }) {
+  const [assets, setAssets] = useState([])
+  const [loadingAssets, setLoadingAssets] = useState(false)
+  const [closing, setClosing] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    setClosing(false)
+    setLoadingAssets(true)
+    fetch(`${API}/api/dashboard/active-assets-list`)
+      .then(r => r.json())
+      .then(data => { setAssets(Array.isArray(data) ? data : []); setLoadingAssets(false) })
+      .catch(() => setLoadingAssets(false))
+  }, [isOpen])
+
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(() => {
+      setClosing(false)
+      onClose()
+    }, 180)
+  }
+
+  if (!isOpen) return null
+
+  const grouped = STATUS_ORDER.map(status => ({
+    status,
+    items: assets.filter(a => a.asset_status === status)
+  })).filter(g => g.items.length > 0)
+
+  return (
+    <div
+      className={`trk-modal-overlay active asset-modal-overlay${closing ? ' closing' : ''}`}
+      onClick={handleClose}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        className={`asset-list-modal${closing ? ' closing' : ''}`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="asset-list-modal-header">
+          <div>
+            <div className="asset-list-modal-title">Active Assets</div>
+            <div className="asset-list-modal-subtitle">
+              {assets.length} total asset · sorted by status
+            </div>
+          </div>
+
+        </div>
+
+        {/* Table */}
+        <div className="asset-list-modal-scroll">
+          {loadingAssets ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading...</div>
+          ) : assets.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No assets found.</div>
+          ) : (
+            <table className="asset-list-table">
+              <thead>
+                <tr>
+                  <th>Asset Name</th>
+                  <th>Status</th>
+                  <th>Location</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grouped.map(group => (
+                  <>
+                    <tr key={`group-${group.status}`} className="asset-list-group-row">
+                      <td colSpan={3}>
+                        <span
+                          className="asset-list-group-label"
+                          style={{ color: statusBg(group.status) }}
+                        >
+                          {group.status.toUpperCase()}
+                          <span
+                            className="asset-list-group-count"
+                            style={{ backgroundColor: statusBg(group.status) }}
+                          >{group.items.length}</span>
+                        </span>
+                      </td>
+                    </tr>
+                    {group.items.map(a => (
+                      <tr key={a.asset_id} className="asset-list-row">
+                        <td>
+                          <div className="asset-list-name">{a.asset_name}</div>
+                          <div className="asset-list-tag">{a.tag_number}</div>
+                        </td>
+                        <td>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            color: 'white',
+                            textTransform: 'uppercase',
+                            backgroundColor: statusBg(a.asset_status)
+                          }}>
+                            {a.asset_status}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="asset-list-location">
+                            {a.location_site || <span style={{ color: '#cbd5e1' }}>—</span>}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Under Maintenance Modal ────────────────────────────────
+function MaintModal({ isOpen, onClose }) {
+  const [assets, setAssets] = useState([])
+  const [loadingAssets, setLoadingAssets] = useState(false)
+  const [closing, setClosing] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    setClosing(false)
+    setLoadingAssets(true)
+    fetch(`${API}/api/dashboard/maint-assets-list`)
+      .then(r => r.json())
+      .then(data => { setAssets(Array.isArray(data) ? data : []); setLoadingAssets(false) })
+      .catch(() => setLoadingAssets(false))
+  }, [isOpen])
+
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(() => { setClosing(false); onClose() }, 180)
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      className={`trk-modal-overlay active asset-modal-overlay${closing ? ' closing' : ''}`}
+      onClick={handleClose}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        className={`asset-list-modal${closing ? ' closing' : ''}`}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="asset-list-modal-header">
+          <div>
+            <div className="asset-list-modal-title">Under Maintenance</div>
+            <div className="asset-list-modal-subtitle">
+              {assets.length} asset · currently under maintenance
+            </div>
+          </div>
+        </div>
+
+        <div className="asset-list-modal-scroll">
+          {loadingAssets ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading...</div>
+          ) : assets.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No assets under maintenance.</div>
+          ) : (
+            <table className="asset-list-table">
+              <thead>
+                <tr>
+                  <th>Asset Name</th>
+                  <th>Status</th>
+                  <th>Location</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="asset-list-group-row">
+                  <td colSpan={3}>
+                    <span className="asset-list-group-label" style={{ color: statusBg('Under Maintenance') }}>
+                      UNDER MAINTENANCE
+                      <span className="asset-list-group-count" style={{ backgroundColor: statusBg('Under Maintenance') }}>{assets.length}</span>
+                    </span>
+                  </td>
+                </tr>
+                {assets.map(a => (
+                  <tr key={a.asset_id} className="asset-list-row">
+                    <td>
+                      <div className="asset-list-name">{a.asset_name}</div>
+                      <div className="asset-list-tag">{a.tag_number}</div>
+                    </td>
+                    <td>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: 'white',
+                        textTransform: 'uppercase',
+                        backgroundColor: statusBg(a.asset_status)
+                      }}>
+                        {a.asset_status}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="asset-list-location">
+                        {a.location_site || <span style={{ color: '#cbd5e1' }}>—</span>}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ─── Avg Downtime Modal ────────────────────────────────────
+function AvgDowntimeModal({ isOpen, onClose }) {
+  const [rows, setRows]             = useState([])
+  const [loadingData, setLoadingData] = useState(false)
+  const [closing, setClosing]       = useState(false)
+  const [expandedRows, setExpandedRows] = useState({})
+  const [slideOpen, setSlideOpen]   = useState({})
+  const [logData, setLogData]       = useState({})
+  const [logLoading, setLogLoading] = useState({})
+
+  useEffect(() => {
+    if (!isOpen) return
+    setClosing(false)
+    setExpandedRows({})
+    setSlideOpen({})
+    setLogData({})
+    setLoadingData(true)
+    fetch(`${API}/api/dashboard/downtime-per-asset`)
+      .then(r => r.json())
+      .then(data => { setRows(Array.isArray(data) ? data : []); setLoadingData(false) })
+      .catch(() => setLoadingData(false))
+  }, [isOpen])
+
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(() => { setClosing(false); onClose() }, 180)
+  }
+
+  const fetchLog = (assetId, onDone) => {
+    setLogLoading(prev => ({ ...prev, [assetId]: true }))
+    fetch(`${API}/api/dashboard/downtime-log/${assetId}`)
+      .then(r => r.json())
+      .then(data => {
+        setLogData(prev => ({ ...prev, [assetId]: Array.isArray(data) ? data : [] }))
+        setLogLoading(prev => ({ ...prev, [assetId]: false }))
+        if (onDone) onDone()
+      })
+      .catch(() => {
+        setLogLoading(prev => ({ ...prev, [assetId]: false }))
+        if (onDone) onDone()
+      })
+  }
+
+  const toggleRow = (assetId) => {
+    const isOpen = !!expandedRows[assetId]
+    if (isOpen) {
+      setSlideOpen(prev => ({ ...prev, [assetId]: false }))
+      setExpandedRows(prev => ({ ...prev, [assetId]: false }))
+    } else {
+      setExpandedRows(prev => ({ ...prev, [assetId]: true }))
+      fetchLog(assetId, () => setSlideOpen(prev => ({ ...prev, [assetId]: true })))
+    }
+  }
+
+  // format "HH:MM:SS" or seconds → "Xh Ym"
+  const fmtDuration = (val) => {
+    if (!val) return '—'
+    if (typeof val === 'string' && val.includes(':')) {
+      const [h, m] = val.split(':').map(Number)
+      if (!h && !m) return '—'
+      return h ? `${h}h ${m}m` : `${m}m`
+    }
+    const total = Math.round(parseFloat(val) * 60)
+    const h = Math.floor(total / 60), m = total % 60
+    return h ? `${h}h ${m}m` : `${m}m`
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      className={`trk-modal-overlay active asset-modal-overlay${closing ? ' closing' : ''}`}
+      onClick={handleClose}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        className={`asset-list-modal dt-modal${closing ? ' closing' : ''}`}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="asset-list-modal-header">
+          <div>
+            <div className="asset-list-modal-title">Avg. Downtime per Asset</div>
+            <div className="asset-list-modal-subtitle">
+              {rows.length} asset · click row to see WO history
+            </div>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="asset-list-modal-scroll">
+          {loadingData ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading...</div>
+          ) : rows.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No downtime data found.</div>
+          ) : (
+            <table className="asset-list-table dt-table">
+              <thead>
+                <tr>
+                  <th>Asset Name</th>
+                  <th>Avg Downtime</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(row => {
+                  const isExpanded = !!expandedRows[row.asset_id]
+                  const isSlideOpen = !!slideOpen[row.asset_id]
+                  const logs = logData[row.asset_id] || []
+                  const isLogLoading = !!logLoading[row.asset_id]
+                  return (
+                    <>
+                      <tr
+                        key={row.asset_id}
+                        className={`asset-list-row dt-parent-row${isExpanded ? ' expanded' : ''}`}
+                        onClick={() => toggleRow(row.asset_id)}
+                      >
+                        <td>
+                          <div className="asset-list-name">{row.asset_name}</div>
+                          <div className="asset-list-tag">{row.tag_number}</div>
+                        </td>
+                        <td>
+                          <span className="dt-avg-val">{row.avg_downtime_fmt}</span>
+                          <span className="dt-avg-sub">{row.wo_count} WO</span>
+                        </td>
+                      </tr>
+                      <tr key={`log-${row.asset_id}`} style={{ backgroundColor: '#fafbff' }}>
+                        <td colSpan={2} style={{ padding: 0, borderBottom: isExpanded ? '1px solid #e2e8f0' : 'none' }}>
+                          <DtSlideDown open={isSlideOpen}>
+                            <div className="dt-log-wrap">
+                              {isLogLoading ? (
+                                <div className="dt-log-loading">Loading...</div>
+                              ) : logs.length === 0 ? (
+                                <div className="dt-log-loading">No WO records found.</div>
+                              ) : (
+                                <table className="dt-log-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Date</th>
+                                      <th>Type</th>
+                                      <th>Downtime</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {logs.map((log, i) => (
+                                      <tr key={i} className="dt-log-row">
+                                        <td>{log.date ? String(log.date).split('T')[0] : '—'}</td>
+                                        <td>{log.wo_type || '—'}</td>
+                                        <td>{fmtDuration(log.downtime_hours)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          </DtSlideDown>
+                        </td>
+                      </tr>
+                    </>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// SlideDown mini untuk DT modal (tidak perlu ref global)
+function DtSlideDown({ open, children }) {
+  const ref = useRef(null)
+  const init = useRef(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (!init.current) {
+      init.current = true
+      el.style.height = open ? 'auto' : '0px'
+      el.style.overflow = 'hidden'
+      return
+    }
+    if (open) {
+      el.style.height = '0px'
+      el.style.overflow = 'hidden'
+      requestAnimationFrame(() => {
+        const h = el.scrollHeight
+        el.style.transition = 'height 0.28s ease'
+        el.style.height = `${h}px`
+        const onEnd = () => { el.style.height = 'auto'; el.style.transition = ''; el.removeEventListener('transitionend', onEnd) }
+        el.addEventListener('transitionend', onEnd)
+      })
+    } else {
+      el.style.height = `${el.scrollHeight}px`
+      el.style.overflow = 'hidden'
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        el.style.transition = 'height 0.28s ease'
+        el.style.height = '0px'
+        const onEnd = () => { el.style.transition = ''; el.removeEventListener('transitionend', onEnd) }
+        el.addEventListener('transitionend', onEnd)
+      }))
+    }
+  }, [open])
+  return <div ref={ref} style={{ overflow: 'hidden' }}>{children}</div>
+}
+
+
+// ─── In Use Modal (Utilization Rate) ───────────────────────
+function InUseModal({ isOpen, onClose }) {
+  const [assets, setAssets] = useState([])
+  const [loadingAssets, setLoadingAssets] = useState(false)
+  const [closing, setClosing] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    setClosing(false)
+    setLoadingAssets(true)
+    fetch(`${API}/api/dashboard/inuse-assets-list`)
+      .then(r => r.json())
+      .then(data => { setAssets(Array.isArray(data) ? data : []); setLoadingAssets(false) })
+      .catch(() => setLoadingAssets(false))
+  }, [isOpen])
+
+  const handleClose = () => {
+    setClosing(true)
+    setTimeout(() => { setClosing(false); onClose() }, 180)
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      className={`trk-modal-overlay active asset-modal-overlay${closing ? ' closing' : ''}`}
+      onClick={handleClose}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
+      <div
+        className={`asset-list-modal${closing ? ' closing' : ''}`}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="asset-list-modal-header">
+          <div>
+            <div className="asset-list-modal-title">Assets In Use</div>
+            <div className="asset-list-modal-subtitle">
+              {assets.length} asset · currently in use
+            </div>
+          </div>
+        </div>
+        <div className="asset-list-modal-scroll">
+          {loadingAssets ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading...</div>
+          ) : assets.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No assets currently in use.</div>
+          ) : (
+            <table className="asset-list-table">
+              <thead>
+                <tr>
+                  <th>Asset Name</th>
+                  <th>Status</th>
+                  <th>Location</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="asset-list-group-row">
+                  <td colSpan={3}>
+                    <span className="asset-list-group-label" style={{ color: statusBg('In Use') }}>
+                      IN USE
+                      <span className="asset-list-group-count" style={{ backgroundColor: statusBg('In Use') }}>{assets.length}</span>
+                    </span>
+                  </td>
+                </tr>
+                {assets.map(a => (
+                  <tr key={a.asset_id} className="asset-list-row">
+                    <td>
+                      <div className="asset-list-name">{a.asset_name}</div>
+                      <div className="asset-list-tag">{a.tag_number}</div>
+                    </td>
+                    <td>
+                      <span style={{
+                        display: 'inline-block', padding: '4px 10px', borderRadius: '6px',
+                        fontSize: '12px', fontWeight: '600', color: 'white',
+                        textTransform: 'uppercase', backgroundColor: statusBg(a.asset_status)
+                      }}>
+                        {a.asset_status}
+                      </span>
+                    </td>
+                    <td>
+                      <span className="asset-list-location">
+                        {a.location_site || <span style={{ color: '#cbd5e1' }}>—</span>}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 const KpiIcons = {
   assets: (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -321,6 +853,10 @@ export default function Dashboard() {
 
   const [activeTab, setActiveTab]       = useState('asset')
   const [loading, setLoading]           = useState(true)
+  const [showAssetModal, setShowAssetModal] = useState(false)
+  const [showMaintModal, setShowMaintModal] = useState(false)
+  const [showDowntimeModal, setShowDowntimeModal] = useState(false)
+  const [showUtilModal, setShowUtilModal] = useState(false)
 
   // Fetch all dashboard data
   const fetchAll = useCallback(async (r) => {
@@ -464,14 +1000,28 @@ export default function Dashboard() {
             <Spinner />
           ) : (
             <>
+          {/* ── ASSET LIST MODAL ── */}
+          <AssetListModal isOpen={showAssetModal} onClose={() => setShowAssetModal(false)} />
+
+          {/* ── UNDER MAINTENANCE MODAL ── */}
+          <MaintModal isOpen={showMaintModal} onClose={() => setShowMaintModal(false)} />
+
+          {/* ── AVG DOWNTIME MODAL ── */}
+          <AvgDowntimeModal isOpen={showDowntimeModal} onClose={() => setShowDowntimeModal(false)} />
+
+          {/* ── IN USE MODAL ── */}
+          <InUseModal isOpen={showUtilModal} onClose={() => setShowUtilModal(false)} />
+
           {/* ── KPI CARDS ── */}
           <div className="dash-kpi-row">
             <KpiCard
               label="Total Active Assets"
               value={fmt(kpi?.total_assets ?? 0)}
-              sub={`${kpi?.in_use ?? 0} currently In Use`}
+              sub={`${kpi?.standby_count ?? 0} currently available`}
               colorClass="kpi-blue"
               icon={KpiIcons.assets}
+              clickable
+              onClick={() => setShowAssetModal(true)}
             />
             <KpiCard
               label="Under Maintenance"
@@ -479,6 +1029,8 @@ export default function Dashboard() {
               sub={`${kpi?.maintenance_pct ?? 0}% of total assets`}
               colorClass="kpi-purple"
               icon={KpiIcons.maintenance}
+              clickable
+              onClick={() => setShowMaintModal(true)}
             />
             <KpiCard
               label="Avg. Downtime"
@@ -486,6 +1038,8 @@ export default function Dashboard() {
               sub="hours per WO incident"
               colorClass="kpi-amber"
               icon={KpiIcons.downtime}
+              clickable
+              onClick={() => setShowDowntimeModal(true)}
             />
             <KpiCard
               label="Utilization Rate"
@@ -493,6 +1047,8 @@ export default function Dashboard() {
               sub="active assets in use"
               colorClass="kpi-green"
               icon={KpiIcons.utilization}
+              clickable
+              onClick={() => setShowUtilModal(true)}
             />
           </div>
 

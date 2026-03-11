@@ -1018,3 +1018,294 @@
   padding: 24px 0;
   font-size: 12px;
 }
+/* ─── KPI Card Clickable ───────────────────────────────────── */
+.kpi-card-clickable {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.kpi-card-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(99,102,241,0.15);
+}
+.kpi-card-clickable:active {
+  transform: translateY(0);
+}
+
+/* ─── Asset Modal Overlay ──────────────────────────────────── */
+.asset-modal-overlay {
+  background-color: rgba(15,23,42,0.35) !important;
+  backdrop-filter: blur(1.5px) !important;
+}
+.asset-modal-overlay.closing {
+  animation: trkFadeOut 0.18s ease forwards;
+}
+@keyframes trkFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ─── Asset List Modal ─────────────────────────────────────── */
+.asset-list-modal {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  width: 560px;
+  max-width: calc(100vw - 48px);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  animation: assetModalIn 0.22s ease forwards;
+  overflow: hidden;
+}
+.asset-list-modal.closing {
+  animation: assetModalOut 0.18s ease forwards;
+}
+
+@keyframes assetModalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes assetModalOut {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.96) translateY(8px); }
+}
+
+.asset-list-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 16px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.asset-list-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.asset-list-modal-subtitle {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.asset-list-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, background-color 0.15s;
+  flex-shrink: 0;
+}
+.asset-list-modal-close:hover {
+  color: #334155;
+  background-color: #f1f5f9;
+}
+
+.asset-list-modal-scroll {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.asset-list-modal-scroll::-webkit-scrollbar { width: 6px; }
+.asset-list-modal-scroll::-webkit-scrollbar-track { background: #f8fafc; }
+.asset-list-modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+.asset-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.asset-list-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+}
+
+.asset-list-table th {
+  padding: 10px 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.asset-list-table th:nth-child(1) { width: 44%; }
+.asset-list-table th:nth-child(2) { width: 29%; }
+.asset-list-table th:nth-child(3) { width: 27%; }
+
+/* Group header row */
+.asset-list-group-row td {
+  padding: 8px 20px 5px 20px;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.asset-list-group-row:first-child td {
+  border-top: none;
+}
+
+.asset-list-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.asset-list-group-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+}
+
+/* Data rows */
+.asset-list-row {
+  border-bottom: 1px solid #f8fafc;
+  transition: background-color 0.12s;
+}
+.asset-list-row:hover { background-color: #f8fafc; }
+
+.asset-list-row td {
+  padding: 11px 20px;
+  vertical-align: middle;
+}
+
+.asset-list-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.asset-list-tag {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.asset-list-location {
+  font-size: 13px;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+/* ─── Avg Downtime Modal ───────────────────────────────────── */
+.dt-modal {
+  width: 500px;
+}
+
+/* Parent table: auto layout agar child td tidak terkonstrain lebar kolom fixed */
+.dt-modal .asset-list-table {
+  table-layout: fixed;
+}
+.dt-modal .asset-list-table th:nth-child(1) { width: fixed; }
+.dt-modal .asset-list-table th:nth-child(2) { width: fixed; }
+.dt-modal .asset-list-table th:nth-child(3) { width: 0; }
+
+/* Child table: full width, kolom Downtime lebih lebar */
+.dt-log-table th:nth-child(1) { width: 60px; }
+.dt-log-table th:nth-child(2) { width: 60px; }
+.dt-log-table th:nth-child(3) { width: 70px; }
+
+.dt-parent-row {
+  cursor: pointer !important;
+}
+.dt-parent-row.expanded {
+  background-color: #f5f3ff;
+}
+
+.dt-avg-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f59e0b;
+  display: block;
+}
+.dt-avg-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 1px;
+  display: block;
+}
+
+/* Log child table */
+.dt-log-wrap {
+  background-color: #fafbff;
+  border-top: 1px solid #e8ecf4;
+}
+
+.dt-log-loading {
+  padding: 16px 24px;
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.dt-log-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.dt-log-table thead {
+  background-color: #f1f5f9;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.dt-log-table th {
+  padding: 8px 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+
+
+.dt-log-row {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.12s;
+}
+.dt-log-row:last-child { border-bottom: none; }
+.dt-log-row:hover { background-color: #f5f3ff; }
+
+.dt-log-row td {
+  padding: 9px 20px;
+  font-size: 13px;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.dt-log-row td:nth-child(3) {
+  font-weight: 600;
+  color: #f59e0b;
+}
