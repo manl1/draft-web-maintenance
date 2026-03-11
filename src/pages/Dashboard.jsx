@@ -880,6 +880,12 @@ function WoDetailModal({ isOpen, onClose, assetId, assetName }) {
     if (s === 'Pending') return '#f59e0b'
     return '#94a3b8'
   }
+  const runningTestBg = (v) => {
+    if (v === 'Pass') return '#22c55e'
+    if (v === 'Ongoing') return '#3b82f6'
+    if (v === 'Denied') return '#ef4444'
+    return '#94a3b8'
+  }
 
   useEffect(() => {
     if (!isOpen || !assetId) return
@@ -927,16 +933,15 @@ function WoDetailModal({ isOpen, onClose, assetId, assetName }) {
               <thead>
                 <tr>
                   <th>Type</th>
-                  <th>Priority</th>
-                  <th>Request Date</th>
-                  <th>Scheduled</th>
+                  <th>Description</th>
                   <th>Planned Start</th>
                   <th>Planned Finish</th>
                   <th>Actual Start</th>
                   <th>Actual Finish</th>
                   <th>Downtime</th>
+                  <th>Running Test</th>
                   <th>Status</th>
-                  <th>Description</th>
+                  <th>Priority</th>
                 </tr>
               </thead>
               <tbody>
@@ -947,13 +952,7 @@ function WoDetailModal({ isOpen, onClose, assetId, assetName }) {
                         {r.wo_type}
                       </span>
                     </td>
-                    <td>
-                      <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: priorityBg(r.priority) }}>
-                        {r.priority}
-                      </span>
-                    </td>
-                    <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.wo_request_date)}</td>
-                    <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.scheduled_date)}</td>
+                    <td style={{ fontSize:12, color:'#475569', minWidth:140 }}>{r.wo_description || '—'}</td>
                     <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.planned_start)}</td>
                     <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.planned_finish)}</td>
                     <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.actual_start)}</td>
@@ -962,11 +961,22 @@ function WoDetailModal({ isOpen, onClose, assetId, assetName }) {
                       {r.downtime_hours && r.downtime_hours !== '00:00:00' ? r.downtime_hours.substring(0,5) : '—'}
                     </td>
                     <td>
+                      {r.running_test ? (
+                        <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: runningTestBg(r.running_test) }}>
+                          {r.running_test}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td>
                       <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: woStatusBg(r.wo_status) }}>
                         {r.wo_status}
                       </span>
                     </td>
-                    <td style={{ fontSize:12, color:'#475569', minWidth:120 }}>{r.wo_description || '—'}</td>
+                    <td>
+                      <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: priorityBg(r.priority) }}>
+                        {r.priority}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

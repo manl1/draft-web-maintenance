@@ -1112,7 +1112,7 @@
   flex: 1;
   min-height: 0;
 }
-.asset-list-modal-scroll::-webkit-scrollbar { width: 6px; }
+.asset-list-modal-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .asset-list-modal-scroll::-webkit-scrollbar-track { background: #f8fafc; }
 .asset-list-modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
