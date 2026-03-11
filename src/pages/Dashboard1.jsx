@@ -770,214 +770,6 @@ function InUseModal({ isOpen, onClose }) {
   )
 }
 
-// ─── WO Incidents Modal (Maintenance Incidents heatmap click) ───
-function WoIncidentModal({ isOpen, onClose, monthLabel, yearMonth }) {
-  const [rows, setRows]       = useState([])
-  const [loading, setLoading] = useState(false)
-  const [closing, setClosing] = useState(false)
-
-  useEffect(() => {
-    if (!isOpen || !yearMonth) return
-    setClosing(false)
-    setRows([])
-    setLoading(true)
-    fetch(`${API}/api/dashboard/wo-incidents/${yearMonth}`)
-      .then(r => r.json())
-      .then(data => { setRows(Array.isArray(data) ? data : []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [isOpen, yearMonth])
-
-  const handleClose = () => {
-    setClosing(true)
-    setTimeout(() => { setClosing(false); onClose() }, 180)
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <div
-      className={`trk-modal-overlay active asset-modal-overlay${closing ? ' closing' : ''}`}
-      onClick={handleClose}
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-    >
-      <div
-        className={`asset-list-modal wo-incident-modal${closing ? ' closing' : ''}`}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="asset-list-modal-header">
-          <div>
-            <div className="asset-list-modal-title">Maintenance Incidents</div>
-            <div className="asset-list-modal-subtitle">
-              {rows.length} WO · {monthLabel}
-            </div>
-          </div>
-        </div>
-        <div className="asset-list-modal-scroll">
-          {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading...</div>
-          ) : rows.length === 0 ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No work orders found for this month.</div>
-          ) : (
-            <table className="asset-list-table">
-              <thead>
-                <tr>
-                  <th>Asset Name</th>
-                  <th>Type</th>
-                  <th>Date</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={i} className="asset-list-row">
-                    <td>
-                      <div className="asset-list-name">{r.asset_name}</div>
-                      <div className="asset-list-tag">{r.tag_number}</div>
-                    </td>
-                    <td>
-                      <span style={{
-                        display: 'inline-block', padding: '3px 8px', borderRadius: '6px',
-                        fontSize: '11px', fontWeight: '600', color: 'white', textTransform: 'uppercase',
-                        backgroundColor: r.wo_type === 'Corrective' ? '#ef4444' : '#3b82f6'
-                      }}>{r.wo_type}</span>
-                    </td>
-                    <td style={{ whiteSpace: 'nowrap', color: '#64748b', fontSize: 13 }}>
-                      {r.wo_request_date ? String(r.wo_request_date).split('T')[0] : '—'}
-                    </td>
-                    <td style={{ color: '#475569', fontSize: 13 }}>{r.wo_description || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── WO Detail Modal (Asset Maintenance History Detail row click) ───
-function WoDetailModal({ isOpen, onClose, assetId, assetName }) {
-  const [rows, setRows]       = useState([])
-  const [loading, setLoading] = useState(false)
-  const [closing, setClosing] = useState(false)
-
-  const fmtDate = (val) => {
-    if (!val) return '—'
-    const s = String(val).split('T')[0]
-    return s === '0000-00-00' ? '—' : s
-  }
-
-  const woTypeBg = (t) => t === 'Corrective' ? '#ef4444' : '#3b82f6'
-  const priorityBg = (p) => {
-    if (p === 'High') return '#ef4444'
-    if (p === 'Medium') return '#f59e0b'
-    return '#22c55e'
-  }
-  const woStatusBg = (s) => {
-    if (s === 'Completed') return '#22c55e'
-    if (s === 'In Progress') return '#3b82f6'
-    if (s === 'Pending') return '#f59e0b'
-    return '#94a3b8'
-  }
-
-  useEffect(() => {
-    if (!isOpen || !assetId) return
-    setClosing(false)
-    setRows([])
-    setLoading(true)
-    fetch(`${API}/api/dashboard/asset-wo-detail/${assetId}`)
-      .then(r => r.json())
-      .then(data => { setRows(Array.isArray(data) ? data : []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [isOpen, assetId])
-
-  const handleClose = () => {
-    setClosing(true)
-    setTimeout(() => { setClosing(false); onClose() }, 180)
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <div
-      className={`trk-modal-overlay active asset-modal-overlay${closing ? ' closing' : ''}`}
-      onClick={handleClose}
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-    >
-      <div
-        className={`asset-list-modal wo-detail-modal${closing ? ' closing' : ''}`}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="asset-list-modal-header">
-          <div>
-            <div className="asset-list-modal-title">{assetName}</div>
-            <div className="asset-list-modal-subtitle">
-              {rows.length} work order · maintenance history
-            </div>
-          </div>
-        </div>
-        <div className="asset-list-modal-scroll">
-          {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Loading...</div>
-          ) : rows.length === 0 ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No work orders found.</div>
-          ) : (
-            <table className="asset-list-table wo-detail-table">
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Priority</th>
-                  <th>Request Date</th>
-                  <th>Scheduled</th>
-                  <th>Planned Start</th>
-                  <th>Planned Finish</th>
-                  <th>Actual Start</th>
-                  <th>Actual Finish</th>
-                  <th>Downtime</th>
-                  <th>Status</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={i} className="asset-list-row">
-                    <td>
-                      <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: woTypeBg(r.wo_type) }}>
-                        {r.wo_type}
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: priorityBg(r.priority) }}>
-                        {r.priority}
-                      </span>
-                    </td>
-                    <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.wo_request_date)}</td>
-                    <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.scheduled_date)}</td>
-                    <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.planned_start)}</td>
-                    <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.planned_finish)}</td>
-                    <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.actual_start)}</td>
-                    <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.actual_finish)}</td>
-                    <td style={{ whiteSpace:'nowrap', fontSize:13, fontWeight:600, color:'#f59e0b' }}>
-                      {r.downtime_hours && r.downtime_hours !== '00:00:00' ? r.downtime_hours.substring(0,5) : '—'}
-                    </td>
-                    <td>
-                      <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: woStatusBg(r.wo_status) }}>
-                        {r.wo_status}
-                      </span>
-                    </td>
-                    <td style={{ fontSize:12, color:'#475569', minWidth:120 }}>{r.wo_description || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 
 const KpiIcons = {
   assets: (
@@ -1065,8 +857,6 @@ export default function Dashboard() {
   const [showMaintModal, setShowMaintModal] = useState(false)
   const [showDowntimeModal, setShowDowntimeModal] = useState(false)
   const [showUtilModal, setShowUtilModal] = useState(false)
-  const [woDetailModal, setWoDetailModal] = useState({ open: false, assetId: null, assetName: '' })
-  const [woIncidentModal, setWoIncidentModal] = useState({ open: false, monthLabel: '', yearMonth: '' })
 
   // Fetch all dashboard data
   const fetchAll = useCallback(async (r) => {
@@ -1140,7 +930,7 @@ export default function Dashboard() {
   // Fetch detail table
   const fetchDetail = useCallback(async () => {
     const params = new URLSearchParams({
-      range, page: detailPage, limit: 5,
+      range, page: detailPage, limit: 10,
       search: detailSearch, category: detailCategory,
       sort: 'tag_number', dir: sortOrder || 'none'
     })
@@ -1222,22 +1012,6 @@ export default function Dashboard() {
           {/* ── IN USE MODAL ── */}
           <InUseModal isOpen={showUtilModal} onClose={() => setShowUtilModal(false)} />
 
-          {/* ── WO DETAIL MODAL (Asset Maintenance History) ── */}
-          <WoDetailModal
-            isOpen={woDetailModal.open}
-            onClose={() => setWoDetailModal(m => ({ ...m, open: false }))}
-            assetId={woDetailModal.assetId}
-            assetName={woDetailModal.assetName}
-          />
-
-          {/* ── WO INCIDENTS MODAL ── */}
-          <WoIncidentModal
-            isOpen={woIncidentModal.open}
-            onClose={() => setWoIncidentModal(m => ({ ...m, open: false }))}
-            monthLabel={woIncidentModal.monthLabel}
-            yearMonth={woIncidentModal.yearMonth}
-          />
-
           {/* ── KPI CARDS ── */}
           <div className="dash-kpi-row">
             <KpiCard
@@ -1276,175 +1050,6 @@ export default function Dashboard() {
               clickable
               onClick={() => setShowUtilModal(true)}
             />
-          </div>
-
-
-          {/* ── ROW 3: Produktivitas + (Donut, Heatmap, Avg Downtime) ── */}
-          <div className="dash-grid3">
-
-            {/* Productivity Ranking */}
-            <SectionCard
-              title="Asset Productivity"
-              subtitle={`Score based on active days & inspeksi P2H – ${range} hari`}
-              tag={`TOP ${productivity.length}`}
-            >
-              {productivity.length === 0 ? (
-                <div className="dash-empty">No productivity data</div>
-              ) : (
-                <div className="rank-list">
-                  {productivity.map((row) => (
-                    <div key={row.asset_id} className="rank-item">
-                      <span className="rank-num rank-rest">
-                        {String(row.rank).padStart(2, '0')}
-                      </span>
-                      <div className="rank-info">
-                        <div className="rank-name">{row.asset_name}</div>
-                        <div className="rank-type">{row.category} · {row.tag_number}</div>
-                      </div>
-                      <div className="rank-bar">
-                        <div className="rank-bar-fill" style={{ width: `${row.score}%` }} />
-                      </div>
-                      <span className={`rank-score ${scoreColor(row.score)}`}>{row.score}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </SectionCard>
-
-            {/* Right column */}
-            <div className="dash-col-right">
-
-              {/* Donut: Status */}
-              <SectionCard title="Asset Status" subtitle="Current status distribution">
-                <div className="donut-wrap">
-                  <svg width="110" height="110" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="35" fill="none" stroke="#1a1e2a" strokeWidth="16"/>
-                    {donutSegments().map((seg, i) => (
-                      <circle key={i}
-                        cx="50" cy="50" r="35"
-                        fill="none"
-                        stroke={seg.color}
-                        strokeWidth="16"
-                        strokeDasharray={`${seg.dash} ${seg.gap}`}
-                        strokeDashoffset={seg.offset}
-                      />
-                    ))}
-                    <text x="50" y="46" textAnchor="middle" fill="#e2e8f0" fontSize="13" fontWeight="700" fontFamily="monospace">{totalAssets}</text>
-                    <text x="50" y="59" textAnchor="middle" fill="#64748b" fontSize="7" fontFamily="sans-serif">TOTAL</text>
-                  </svg>
-                  <div className="donut-legend">
-                    {donutSegments().map((seg, i) => (
-                      <div key={i} className="legend-row">
-                        <span className="legend-dot" style={{ background: seg.color }} />
-                        <span className="legend-label">{seg.asset_status}</span>
-                        <span className="legend-val" style={{ color: seg.color }}>{seg.total}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </SectionCard>
-
-              {/* Heatmap / Line Chart */}
-              <SectionCard
-                title={heatmapPage === 0 ? 'Maintenance Incidents' : 'Daily Incident Trend'}
-                subtitle={heatmapPage === 0 ? 'WO count per month – 12 months' : `WO count per day – ${range} days`}
-                right={
-                  <div className="heat-nav">
-                    <button className="heat-nav-btn" onClick={() => setHeatmapPage(0)} disabled={heatmapPage === 0} title="Monthly Heatmap">‹</button>
-                    <div className="heat-nav-dots">
-                      <span className={`heat-nav-dot ${heatmapPage === 0 ? 'active' : ''}`} onClick={() => setHeatmapPage(0)} />
-                      <span className={`heat-nav-dot ${heatmapPage === 1 ? 'active' : ''}`} onClick={() => setHeatmapPage(1)} />
-                    </div>
-                    <button className="heat-nav-btn" onClick={() => setHeatmapPage(1)} disabled={heatmapPage === 1} title="Daily Line Chart">›</button>
-                  </div>
-                }
-              >
-                {heatmapPage === 0 ? (
-                  <>
-                    <div className="heat-month-labels">
-                      {heatmap.map((m, i) => <span key={i} className="heat-month-label">{m.month_label}</span>)}
-                    </div>
-                    <div className="heat-grid">
-                      {heatmap.map((m, i) => (
-                        <div
-                          key={i}
-                          className={`heat-cell ${intensityClass(m.intensity)}`}
-                          title={`${m.month_label}: ${m.total} insiden`}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => setWoIncidentModal({ open: true, monthLabel: m.month_label, yearMonth: m.year_month })}
-                        />
-                      ))}
-                    </div>
-                    <div className="heat-legend">
-                      <span>Rare</span>
-                      {[0,1,2,3,4,5].map(l => <div key={l} className={`heat-legend-cell heat-${l}`} />)}
-                      <span>Frequent</span>
-                    </div>
-                  </>
-                ) : (
-                  <LineChart data={dailyChart} />
-                )}
-              </SectionCard>
-
-              {/* Avg Downtime per Kategori */}
-              <SectionCard
-                title="Avg. Downtime per Category"
-                subtitle="Average downtime hours per incident"
-                right={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button
-                      ref={avgBtnRef}
-                      className={`trk-filter-btn${avgDropOpen ? ' active' : ''}`}
-                      onClick={() => setAvgDropOpen(o => !o)}
-                    >
-                      {avgWoType || 'All'}
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-                    </button>
-                    <DashDropdown
-                      isOpen={avgDropOpen}
-                      onClose={() => setAvgDropOpen(false)}
-                      anchorRef={avgBtnRef}
-                      options={['Preventive', 'Corrective']}
-                      selected={avgWoType}
-                      onChange={setAvgWoType}
-                    />
-                    <span className="dash-tag">{range} DAYS</span>
-                  </div>
-                }
-              >
-                {avgDowntime.length === 0 ? (
-                  <div className="dash-empty">No data available</div>
-                ) : (
-                  <div className="downtime-list">
-                    {avgDowntime.map((row, i) => {
-                      const cls = row.pct >= 70 ? 'dt-red' : row.pct >= 40 ? 'dt-amber' : 'dt-green'
-                      const fillCls = row.pct >= 70 ? 'dt-fill-red' : row.pct >= 40 ? 'dt-fill-amber' : 'dt-fill-green'
-                      return (
-                        <div key={i} className="downtime-row">
-                          <div className="downtime-header">
-                            <span className="downtime-label-full">{row.category}</span>
-                            <span className={`downtime-val ${cls}`}>{row.avg_hours} hrs</span>
-                          </div>
-                          <div className="downtime-track">
-                            <div
-                              className={`downtime-fill ${fillCls}`}
-                              style={{ width: `${row.pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                    <div className="downtime-insight">
-                      <span className="dot red" />
-                      <span><strong>{avgDowntime[0]?.category}</strong> longest downtime &nbsp;·&nbsp; </span>
-                      <span className="dot green" />
-                      <span><strong>{avgDowntime[avgDowntime.length - 1]?.category}</strong> most efficient</span>
-                    </div>
-                  </div>
-                )}
-              </SectionCard>
-
-            </div>
           </div>
 
           {/* ── ROW 2: Lokasi History + Maintenance per Kategori ── */}
@@ -1571,6 +1176,168 @@ export default function Dashboard() {
 
           </div>
 
+          {/* ── ROW 3: Produktivitas + (Donut, Heatmap, Avg Downtime) ── */}
+          <div className="dash-grid3">
+
+            {/* Productivity Ranking */}
+            <SectionCard
+              title="Asset Productivity"
+              subtitle={`Score based on active days & inspeksi P2H – ${range} hari`}
+              tag={`TOP ${productivity.length}`}
+            >
+              {productivity.length === 0 ? (
+                <div className="dash-empty">No productivity data</div>
+              ) : (
+                <div className="rank-list">
+                  {productivity.map((row) => (
+                    <div key={row.asset_id} className="rank-item">
+                      <span className="rank-num rank-rest">
+                        {String(row.rank).padStart(2, '0')}
+                      </span>
+                      <div className="rank-info">
+                        <div className="rank-name">{row.asset_name}</div>
+                        <div className="rank-type">{row.category} · {row.tag_number}</div>
+                      </div>
+                      <div className="rank-bar">
+                        <div className="rank-bar-fill" style={{ width: `${row.score}%` }} />
+                      </div>
+                      <span className={`rank-score ${scoreColor(row.score)}`}>{row.score}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+
+            {/* Right column */}
+            <div className="dash-col-right">
+
+              {/* Donut: Status */}
+              <SectionCard title="Asset Status" subtitle="Current status distribution">
+                <div className="donut-wrap">
+                  <svg width="110" height="110" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="35" fill="none" stroke="#1a1e2a" strokeWidth="16"/>
+                    {donutSegments().map((seg, i) => (
+                      <circle key={i}
+                        cx="50" cy="50" r="35"
+                        fill="none"
+                        stroke={seg.color}
+                        strokeWidth="16"
+                        strokeDasharray={`${seg.dash} ${seg.gap}`}
+                        strokeDashoffset={seg.offset}
+                      />
+                    ))}
+                    <text x="50" y="46" textAnchor="middle" fill="#e2e8f0" fontSize="13" fontWeight="700" fontFamily="monospace">{totalAssets}</text>
+                    <text x="50" y="59" textAnchor="middle" fill="#64748b" fontSize="7" fontFamily="sans-serif">TOTAL</text>
+                  </svg>
+                  <div className="donut-legend">
+                    {donutSegments().map((seg, i) => (
+                      <div key={i} className="legend-row">
+                        <span className="legend-dot" style={{ background: seg.color }} />
+                        <span className="legend-label">{seg.asset_status}</span>
+                        <span className="legend-val" style={{ color: seg.color }}>{seg.total}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </SectionCard>
+
+              {/* Heatmap / Line Chart */}
+              <SectionCard
+                title={heatmapPage === 0 ? 'Maintenance Incidents' : 'Daily Incident Trend'}
+                subtitle={heatmapPage === 0 ? 'WO count per month – 12 months' : `WO count per day – ${range} days`}
+                right={
+                  <div className="heat-nav">
+                    <button className="heat-nav-btn" onClick={() => setHeatmapPage(0)} disabled={heatmapPage === 0} title="Monthly Heatmap">‹</button>
+                    <div className="heat-nav-dots">
+                      <span className={`heat-nav-dot ${heatmapPage === 0 ? 'active' : ''}`} onClick={() => setHeatmapPage(0)} />
+                      <span className={`heat-nav-dot ${heatmapPage === 1 ? 'active' : ''}`} onClick={() => setHeatmapPage(1)} />
+                    </div>
+                    <button className="heat-nav-btn" onClick={() => setHeatmapPage(1)} disabled={heatmapPage === 1} title="Daily Line Chart">›</button>
+                  </div>
+                }
+              >
+                {heatmapPage === 0 ? (
+                  <>
+                    <div className="heat-month-labels">
+                      {heatmap.map((m, i) => <span key={i} className="heat-month-label">{m.month_label}</span>)}
+                    </div>
+                    <div className="heat-grid">
+                      {heatmap.map((m, i) => (
+                        <div key={i} className={`heat-cell ${intensityClass(m.intensity)}`} title={`${m.month_label}: ${m.total} insiden`} />
+                      ))}
+                    </div>
+                    <div className="heat-legend">
+                      <span>Rare</span>
+                      {[0,1,2,3,4,5].map(l => <div key={l} className={`heat-legend-cell heat-${l}`} />)}
+                      <span>Frequent</span>
+                    </div>
+                  </>
+                ) : (
+                  <LineChart data={dailyChart} />
+                )}
+              </SectionCard>
+
+              {/* Avg Downtime per Kategori */}
+              <SectionCard
+                title="Avg. Downtime per Category"
+                subtitle="Average downtime hours per incident"
+                right={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      ref={avgBtnRef}
+                      className={`trk-filter-btn${avgDropOpen ? ' active' : ''}`}
+                      onClick={() => setAvgDropOpen(o => !o)}
+                    >
+                      {avgWoType || 'All'}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                    <DashDropdown
+                      isOpen={avgDropOpen}
+                      onClose={() => setAvgDropOpen(false)}
+                      anchorRef={avgBtnRef}
+                      options={['Preventive', 'Corrective']}
+                      selected={avgWoType}
+                      onChange={setAvgWoType}
+                    />
+                    <span className="dash-tag">{range} DAYS</span>
+                  </div>
+                }
+              >
+                {avgDowntime.length === 0 ? (
+                  <div className="dash-empty">No data available</div>
+                ) : (
+                  <div className="downtime-list">
+                    {avgDowntime.map((row, i) => {
+                      const cls = row.pct >= 70 ? 'dt-red' : row.pct >= 40 ? 'dt-amber' : 'dt-green'
+                      const fillCls = row.pct >= 70 ? 'dt-fill-red' : row.pct >= 40 ? 'dt-fill-amber' : 'dt-fill-green'
+                      return (
+                        <div key={i} className="downtime-row">
+                          <div className="downtime-header">
+                            <span className="downtime-label-full">{row.category}</span>
+                            <span className={`downtime-val ${cls}`}>{row.avg_hours} hrs</span>
+                          </div>
+                          <div className="downtime-track">
+                            <div
+                              className={`downtime-fill ${fillCls}`}
+                              style={{ width: `${row.pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div className="downtime-insight">
+                      <span className="dot red" />
+                      <span><strong>{avgDowntime[0]?.category}</strong> longest downtime &nbsp;·&nbsp; </span>
+                      <span className="dot green" />
+                      <span><strong>{avgDowntime[avgDowntime.length - 1]?.category}</strong> most efficient</span>
+                    </div>
+                  </div>
+                )}
+              </SectionCard>
+
+            </div>
+          </div>
+
           {/* ── ROW 5: Detail Table ── */}
           <SectionCard
             title="Asset Maintenance History Detail"
@@ -1629,18 +1396,14 @@ export default function Dashboard() {
                   {detailData.length === 0 ? (
                     <tr><td colSpan={8} className="detail-empty">No data available</td></tr>
                   ) : detailData.map((row) => (
-                    <tr
-                      key={row.asset_id}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => setWoDetailModal({ open: true, assetId: row.asset_id, assetName: row.asset_name })}
-                    >
+                    <tr key={row.asset_id}>
                       <td className="td-tag">{row.tag_number}</td>
                       <td>{highlightText(row.asset_name, detailSearch)}</td>
                       <td className="td-muted">{row.category}</td>
                       <td className="td-muted">{row.last_location || '–'}</td>
                       <td className="td-center td-mono">{row.total_wo}×</td>
-                      <td className={`td-mono ${row.total_downtime_hours > 30 ? 'dt-red' : row.total_downtime_hours > 10 ? 'dt-amber' : 'dt-green'}`}>
-                        {row.total_downtime_hours || 0} hr
+                      <td className={`td-mono ${row.total_downtime_days > 30 ? 'dt-red' : row.total_downtime_days > 10 ? 'dt-amber' : 'dt-green'}`}>
+                        {row.total_downtime_days || 0} hr
                       </td>
                       <td>
                         <div className="score-wrap">
@@ -1678,7 +1441,7 @@ export default function Dashboard() {
             {/* Pagination */}
             <div className="detail-pagination">
               <span className="pagination-info">
-                {detailTotal} records · Page {detailPage} of {Math.ceil(detailTotal / 5) || 1}
+                {detailTotal} records · Page {detailPage} of {Math.ceil(detailTotal / 10) || 1}
               </span>
               <div className="pagination-btns">
                 <button
@@ -1688,7 +1451,7 @@ export default function Dashboard() {
                 >← Prev</button>
                 <button
                   className="pg-btn"
-                  disabled={detailPage >= Math.ceil(detailTotal / 5)}
+                  disabled={detailPage >= Math.ceil(detailTotal / 10)}
                   onClick={() => setDetailPage(p => p + 1)}
                 >Next →</button>
               </div>
