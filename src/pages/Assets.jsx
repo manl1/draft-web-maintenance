@@ -895,7 +895,7 @@ function Assets() {
       .then(r => r.json())
       .then(data => {
         const elapsed = Date.now() - fetchStart
-        const minDuration = 400 // show data at half animation duration
+        const minDuration = 400 
         const remaining = Math.max(0, minDuration - elapsed)
         setTimeout(() => {
           if (Array.isArray(data)) setAssets(data)

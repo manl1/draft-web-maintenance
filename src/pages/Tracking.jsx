@@ -55,23 +55,44 @@ function CheckResult({ value }) {
 // ===== SlideDown =====
 function SlideDown({ open, children }) {
   const ref = useRef(null)
+  const initialized = useRef(false)
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    if (!initialized.current) {
+      initialized.current = true
+      el.style.height = open ? 'auto' : '0px'
+      el.style.overflow = 'hidden'
+      return
+    }
     if (open) {
       el.style.height = '0px'
       el.style.overflow = 'hidden'
       requestAnimationFrame(() => {
+        const h = el.scrollHeight
         el.style.transition = 'height 0.3s ease'
-        el.style.height = el.scrollHeight + 'px'
-        setTimeout(() => { el.style.height = 'auto'; el.style.overflow = 'visible' }, 310)
+        el.style.height = `${h}px`
+        const onEnd = () => {
+          el.style.height = 'auto'
+          el.style.transition = ''
+          el.removeEventListener('transitionend', onEnd)
+        }
+        el.addEventListener('transitionend', onEnd)
       })
     } else {
-      el.style.height = el.scrollHeight + 'px'
+      const h = el.scrollHeight
+      el.style.height = `${h}px`
       el.style.overflow = 'hidden'
       requestAnimationFrame(() => {
-        el.style.transition = 'height 0.3s ease'
-        el.style.height = '0px'
+        requestAnimationFrame(() => {
+          el.style.transition = 'height 0.3s ease'
+          el.style.height = '0px'
+          const onEnd = () => {
+            el.style.transition = ''
+            el.removeEventListener('transitionend', onEnd)
+          }
+          el.addEventListener('transitionend', onEnd)
+        })
       })
     }
   }, [open])
@@ -82,6 +103,7 @@ function SlideDown({ open, children }) {
 function DetailRow({ report }) {
   const [details, setDetails] = useState([])
   const [loading, setLoading] = useState(false)
+  const [isReady, setIsReady] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
   const load = () => {
@@ -138,12 +160,27 @@ function DetailRow({ report }) {
               </tr>
             </thead>
             <tbody>
-              {details.map((d, i) => (
-                <tr key={i} className="trk-detail-row">
-                  <td className="trk-detail-q">{d.question || '-'}</td>
-                  <td className="trk-detail-r"><CheckResult value={d.question_result} /></td>
-                </tr>
-              ))}
+              {details.map((d, i) => {
+                const TEXT_ONLY_QUESTIONS = [
+                  'nomor kendaraan',
+                  'km / hm kendaraan',
+                  'km / hm servis selanjutnya',
+                ]
+                const isTextOnly = TEXT_ONLY_QUESTIONS.some(q =>
+                  d.question?.toLowerCase().trim() === q
+                )
+                return (
+                  <tr key={i} className="trk-detail-row">
+                    <td className="trk-detail-q">{d.question || '-'}</td>
+                    <td className="trk-detail-r">
+                      {isTextOnly
+                        ? <span style={{ fontSize: 13, color: '#334155' }}>{d.question_result || '-'}</span>
+                        : <CheckResult value={d.question_result} />
+                      }
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
@@ -231,11 +268,436 @@ function StatusIcon({ hasP2h }) {
   )
 }
 
+
+// ===== Utilization Rate Badge =====
+function UtilizationBadge({ value, max }) {
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0
+  const color =
+    pct <= 25 ? '#22c55e' :
+    pct <= 50 ? '#eab308' :
+    pct <= 75 ? '#f97316' : '#ef4444'
+  return (
+    <span style={{
+      display: 'inline-block',
+      padding: '4px 12px',
+      borderRadius: '6px',
+      backgroundColor: color,
+      color: 'white',
+      fontSize: '12px',
+      fontWeight: '700',
+      whiteSpace: 'nowrap',
+      minWidth: '52px',
+      textAlign: 'center'
+    }}>{pct}%</span>
+  )
+}
+
+// ===== Hour Meter Tab =====
+function HourMeterTab({ types }) {
+  const HM_MAX = 4000
+
+  // ---- Tabel utama state ----
+  const [hmRows, setHmRows] = useState([])
+  const [hmLoading, setHmLoading] = useState(false)
+  const [hmReady, setHmReady] = useState(false)
+  const [hmSearch, setHmSearch] = useState('')
+  const [hmTypeFilter, setHmTypeFilter] = useState('')
+  const [hmSortOrder, setHmSortOrder] = useState(null)
+  const [showHmTypeDropdown, setShowHmTypeDropdown] = useState(false)
+  const [hmTypePosState, setHmTypePosState] = useState({ top: 0, left: 0 })
+  const hmTypeBtnRef = useRef(null)
+
+  // ---- Log filter state (untuk expand row) ----
+  const [logDateStart, setLogDateStart] = useState('')
+  const [logDateEnd, setLogDateEnd] = useState('')
+  const [logShift, setLogShift] = useState('')
+  const [showLogDateDropdown, setShowLogDateDropdown] = useState(false)
+  const [showLogShiftDropdown, setShowLogShiftDropdown] = useState(false)
+  const [logDatePos, setLogDatePos] = useState({ top: 0, left: 0 })
+  const [logShiftPos, setLogShiftPos] = useState({ top: 0, left: 0 })
+  const logDateBtnRef = useRef(null)
+  const logShiftBtnRef = useRef(null)
+  const logDateStartRef = useRef(null)
+  const logDateEndRef = useRef(null)
+  const logStartFp = useRef(null)
+  const logEndFp = useRef(null)
+
+  // ---- Expand row state ----
+  const [expandedHmRows, setExpandedHmRows] = useState({})
+  const [logData, setLogData] = useState({}) // { asset_name: [rows] }
+  const [logLoading, setLogLoading] = useState({})
+
+  // ---- Fetch tabel utama (no date/shift filter, only type) ----
+  const fetchHourMeter = () => {
+    setHmReady(false)
+    setHmLoading(true)
+    const fetchStart = Date.now()
+    const params = new URLSearchParams()
+    if (hmTypeFilter) params.append('type', hmTypeFilter)
+    fetch(`${API}/api/tracking/hour-meter?${params}`)
+      .then(r => r.json())
+      .then(data => {
+        const elapsed = Date.now() - fetchStart
+        const remaining = Math.max(0, 400 - elapsed)
+        setTimeout(() => {
+          setHmRows(Array.isArray(data) ? data : [])
+          setHmLoading(false)
+          setTimeout(() => setHmReady(true), 50)
+        }, remaining)
+      })
+      .catch(() => { setHmLoading(false); setHmReady(true) })
+  }
+
+  useEffect(() => { fetchHourMeter() }, [])
+  useEffect(() => { fetchHourMeter() }, [hmTypeFilter])
+
+  // ---- Fetch log for one asset ----
+  const fetchLog = (assetName, onDone) => {
+    setLogLoading(prev => ({ ...prev, [assetName]: true }))
+    const params = new URLSearchParams()
+    params.append('asset_name', assetName)
+    if (logDateStart) params.append('date_start', logDateStart)
+    if (logDateEnd)   params.append('date_end', logDateEnd)
+    if (logShift)     params.append('shift', logShift)
+    fetch(`${API}/api/tracking/hour-meter-log?${params}`)
+      .then(r => r.json())
+      .then(data => {
+        setLogData(prev => ({ ...prev, [assetName]: Array.isArray(data) ? data : [] }))
+        setLogLoading(prev => ({ ...prev, [assetName]: false }))
+        if (onDone) onDone()
+      })
+      .catch(() => {
+        setLogLoading(prev => ({ ...prev, [assetName]: false }))
+        if (onDone) onDone()
+      })
+  }
+
+  // Refetch all expanded logs when log filters change
+  useEffect(() => {
+    Object.keys(expandedHmRows).forEach(assetName => {
+      if (expandedHmRows[assetName]) {
+        setSlideOpenHm(prev => ({ ...prev, [assetName]: false }))
+        fetchLog(assetName, () => {
+          setSlideOpenHm(prev => ({ ...prev, [assetName]: true }))
+        })
+      }
+    })
+  }, [logDateStart, logDateEnd, logShift])
+
+  // Flatpickr for log date dropdown
+  useEffect(() => {
+    if (!showLogDateDropdown) return
+    setTimeout(() => {
+      if (logDateStartRef.current) {
+        logStartFp.current = flatpickr(logDateStartRef.current, {
+          dateFormat: 'Y-m-d', allowInput: true,
+          onChange: ([d]) => setLogDateStart(d ? d.toISOString().split('T')[0] : '')
+        })
+      }
+      if (logDateEndRef.current) {
+        logEndFp.current = flatpickr(logDateEndRef.current, {
+          dateFormat: 'Y-m-d', allowInput: true,
+          onChange: ([d]) => setLogDateEnd(d ? d.toISOString().split('T')[0] : '')
+        })
+      }
+    }, 50)
+    return () => { logStartFp.current?.destroy(); logEndFp.current?.destroy() }
+  }, [showLogDateDropdown])
+
+  // slideOpen controls the actual SlideDown animation
+  // only becomes true after data is ready, preventing height miscalculation
+  const [slideOpenHm, setSlideOpenHm] = useState({})
+
+  const toggleHmRow = (assetName) => {
+    const isCurrentlyOpen = !!expandedHmRows[assetName]
+    if (isCurrentlyOpen) {
+      // Close: animate first
+      setSlideOpenHm(prev => ({ ...prev, [assetName]: false }))
+      setExpandedHmRows(prev => ({ ...prev, [assetName]: false }))
+    } else {
+      // Open: expand row immediately (renders loading state), fetch data, open slide after data ready
+      setExpandedHmRows(prev => ({ ...prev, [assetName]: true }))
+      fetchLog(assetName, () => {
+        // callback after data loaded — now trigger slide animation
+        setSlideOpenHm(prev => ({ ...prev, [assetName]: true }))
+      })
+    }
+  }
+
+  const toggleHmSort = () => setHmSortOrder(prev => prev === 'asc' ? 'desc' : prev === 'desc' ? null : 'asc')
+
+  const getTagNum = (tag) => {
+    const match = String(tag || '').match(/(\d+)$/)
+    return match ? parseInt(match[1], 10) : 0
+  }
+
+  const hmFiltered = hmRows.filter(r =>
+    !hmSearch.trim() || r.asset_name?.toLowerCase().includes(hmSearch.toLowerCase())
+  )
+  const hmDisplayed = hmSortOrder
+    ? [...hmFiltered].sort((a, b) =>
+        hmSortOrder === 'asc'
+          ? getTagNum(a.tag_number) - getTagNum(b.tag_number)
+          : getTagNum(b.tag_number) - getTagNum(a.tag_number)
+      )
+    : hmFiltered
+
+  const openTypeDropdown = () => {
+    if (hmTypeBtnRef.current) {
+      const rect = hmTypeBtnRef.current.getBoundingClientRect()
+      setHmTypePosState({ top: rect.bottom + 8, left: rect.left })
+    }
+    setShowHmTypeDropdown(v => !v)
+  }
+
+  const openLogDateDropdown = () => {
+    if (logDateBtnRef.current) {
+      const rect = logDateBtnRef.current.getBoundingClientRect()
+      setLogDatePos({ top: rect.bottom + 8, left: rect.left })
+    }
+    setShowLogDateDropdown(v => !v)
+  }
+
+  const openLogShiftDropdown = () => {
+    if (logShiftBtnRef.current) {
+      const rect = logShiftBtnRef.current.getBoundingClientRect()
+      setLogShiftPos({ top: rect.bottom + 8, left: rect.left })
+    }
+    setShowLogShiftDropdown(v => !v)
+  }
+
+  const logDateLabel = logDateStart || logDateEnd
+    ? [logDateStart, logDateEnd].filter(Boolean).join(' → ')
+    : 'Date'
+
+  const HM_COLS = 5 // jumlah kolom tabel utama
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div className="trk-toolbar">
+        <div className="trk-toolbar-left">
+
+          {/* Type filter — memfilter tabel utama */}
+          <div className="trk-type-dropdown-wrap">
+            <button ref={hmTypeBtnRef} className={`trk-filter-btn ${hmTypeFilter ? 'active' : ''}`} onClick={openTypeDropdown}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Type{hmTypeFilter ? ` · ${hmTypeFilter}` : ''}
+            </button>
+            {showHmTypeDropdown && (
+              <div className="trk-modal-overlay active" onClick={() => setShowHmTypeDropdown(false)}>
+                <div className="trk-modal-content animating-in"
+                  style={{ position: 'fixed', top: hmTypePosState.top, left: hmTypePosState.left }}
+                  onClick={e => e.stopPropagation()}>
+                  <div className="trk-type-option" onClick={() => { setHmTypeFilter(''); setShowHmTypeDropdown(false) }}>
+                    <input type="checkbox" className="trk-type-checkbox" checked={!hmTypeFilter} readOnly />
+                    <label>All Types</label>
+                  </div>
+                  {types.map(t => (
+                    <div className="trk-type-option" key={t} onClick={() => { setHmTypeFilter(t); setShowHmTypeDropdown(false) }}>
+                      <input type="checkbox" className="trk-type-checkbox" checked={hmTypeFilter === t} readOnly />
+                      <label>{t}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Date filter — untuk log historis */}
+          <div className="trk-type-dropdown-wrap">
+            <button ref={logDateBtnRef} className={`trk-filter-btn ${(logDateStart || logDateEnd) ? 'active' : ''}`} onClick={openLogDateDropdown}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              {logDateLabel}
+            </button>
+            {showLogDateDropdown && (
+              <div className="trk-modal-overlay active" onClick={() => setShowLogDateDropdown(false)}>
+                <div className="trk-modal-content animating-in"
+                  style={{ position: 'fixed', top: logDatePos.top, left: logDatePos.left, minWidth: '240px', padding: '16px' }}
+                  onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px' }}>Start Date</div>
+                      <input ref={logDateStartRef} type="text" placeholder="yyyy-mm-dd"
+                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '6px' }}>End Date</div>
+                      <input ref={logDateEndRef} type="text" placeholder="yyyy-mm-dd"
+                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <button onClick={() => setShowLogDateDropdown(false)}
+                        style={{ flex: 1, padding: '8px', background: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Apply</button>
+                      <button onClick={() => { setLogDateStart(''); setLogDateEnd(''); logStartFp.current?.clear(); logEndFp.current?.clear(); setShowLogDateDropdown(false) }}
+                        style={{ flex: 1, padding: '8px', background: 'white', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Clear</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Shift filter — untuk log historis */}
+          <div className="trk-type-dropdown-wrap">
+            <button ref={logShiftBtnRef} className={`trk-filter-btn ${logShift ? 'active' : ''}`} onClick={openLogShiftDropdown}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              {logShift ? `Shift · ${logShift}` : 'Shift'}
+            </button>
+            {showLogShiftDropdown && (
+              <div className="trk-modal-overlay active" onClick={() => setShowLogShiftDropdown(false)}>
+                <div className="trk-modal-content animating-in"
+                  style={{ position: 'fixed', top: logShiftPos.top, left: logShiftPos.left }}
+                  onClick={e => e.stopPropagation()}>
+                  <div className="trk-type-option" onClick={() => { setLogShift(''); setShowLogShiftDropdown(false) }}>
+                    <input type="checkbox" className="trk-type-checkbox" checked={!logShift} readOnly />
+                    <label>All Shifts</label>
+                  </div>
+                  {['Shift 1', 'Shift 2', 'Shift 3'].map(s => (
+                    <div className="trk-type-option" key={s} onClick={() => { setLogShift(s); setShowLogShiftDropdown(false) }}>
+                      <input type="checkbox" className="trk-type-checkbox" checked={logShift === s} readOnly />
+                      <label>{s}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="trk-toolbar-right">
+          <button className="trk-refresh-btn" onClick={fetchHourMeter}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              style={{ animation: hmLoading ? 'trkSpin 0.8s linear infinite' : 'none' }}>
+              <polyline points="23 4 23 10 17 10"/>
+              <polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+          </button>
+          <div className="trk-search-container">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" className="trk-search-input" placeholder="Search..."
+              value={hmSearch} onChange={e => setHmSearch(e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="trk-table-container">
+        <div className="trk-super-header-wrap">
+          <div className="trk-super-header">Hour Meters Unit</div>
+        </div>
+        <div className="trk-table-scroll">
+          <table className="trk-table">
+            <thead>
+              <tr>
+                <th className="trk-th-expand"></th>
+                <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={toggleHmSort}>
+                  TAG NUMBER
+                  <span style={{ display: 'inline-flex', flexDirection: 'column', marginLeft: '6px', verticalAlign: 'middle', gap: '2px' }}>
+                    <svg width="8" height="6" viewBox="0 0 8 6" fill={hmSortOrder === 'asc' ? '#6366f1' : '#cbd5e1'}><path d="M4 0L8 6H0L4 0Z"/></svg>
+                    <svg width="8" height="6" viewBox="0 0 8 6" fill={hmSortOrder === 'desc' ? '#6366f1' : '#cbd5e1'}><path d="M4 6L0 0H8L4 6Z"/></svg>
+                  </span>
+                </th>
+                <th>ASSET NAME</th>
+                <th>HOUR METERS</th>
+                <th>UTILIZATION RATE</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!hmReady ? null : hmDisplayed.length === 0 ? (
+                <tr>
+                  <td colSpan={HM_COLS}>
+                    <div className="trk-empty-state">
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                      <p className="trk-empty-title">No Hour Meter Data</p>
+                      <p className="trk-empty-sub">No assets found for the selected filters.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : hmDisplayed.map(row => {
+                const isExpanded = !!expandedHmRows[row.asset_name]
+                const logs = logData[row.asset_name] || []
+                const isLogLoading = !!logLoading[row.asset_name]
+                return (
+                  <>
+                    <tr key={row.asset_id} className={`trk-row ${isExpanded ? 'expanded' : ''}`}
+                      onClick={() => toggleHmRow(row.asset_name)}>
+                      <td className="trk-td-expand">
+                        <span className={`trk-expand-arrow ${isExpanded ? 'open' : ''}`}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                      </td>
+                      <td>{row.tag_number || '-'}</td>
+                      <td>{hmSearch.trim()
+                        ? (() => {
+                            const regex = new RegExp(`(${hmSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+                            const parts = (row.asset_name || '-').split(regex)
+                            return <strong>{parts.map((p, i) => regex.test(p) ? <mark key={i} style={{ backgroundColor: '#fde68a', color: '#92400e', borderRadius: '2px', padding: '0 1px' }}>{p}</mark> : p)}</strong>
+                          })()
+                        : <strong>{row.asset_name || '-'}</strong>
+                      }</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: '600', color: '#334155' }}>{row.total_hm ?? 0}</span>
+                        <span style={{ color: '#94a3b8', fontSize: '12px', marginLeft: '4px' }}>/ {HM_MAX}</span>
+                      </td>
+                      <td><UtilizationBadge value={row.total_hm ?? 0} max={HM_MAX} /></td>
+                    </tr>
+                    <tr key={`log-${row.asset_id}`} className="trk-detail-tr">
+                      <td colSpan={HM_COLS} style={{ padding: 0 }}>
+                        <SlideDown open={!!slideOpenHm[row.asset_name]}>
+                          <div className="trk-detail-wrap">
+                            <div className="trk-detail-scroll">
+                              {isLogLoading ? (
+                                <div className="trk-detail-loading">Loading...</div>
+                              ) : logs.length === 0 ? (
+                                <div className="trk-detail-empty">No log entries found.</div>
+                              ) : (
+                                <table className="trk-detail-table">
+                                  <thead>
+                                    <tr>
+                                      <th className="trk-detail-th-q">DATE</th>
+                                      <th className="trk-detail-th-r">SHIFT</th>
+                                      <th className="trk-detail-th-r">HOUR METER</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {logs.map((log, i) => (
+                                      <tr key={i} className="trk-detail-row">
+                                        <td className="trk-detail-q">{log.date ? String(log.date).split('T')[0] : '-'}</td>
+                                        <td className="trk-detail-r">{log.work_shift || '-'}</td>
+                                        <td className="trk-detail-r" style={{ fontWeight: '600', color: '#334155' }}>{log.hour_meters ?? '-'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          </div>
+                        </SlideDown>
+                      </td>
+                    </tr>
+                  </>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ===== Main Tracking Page =====
 export default function Tracking() {
   const [activeTab, setActiveTab] = useState('p2h')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
+  const [isReady, setIsReady] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedRows, setExpandedRows] = useState({})
   const [typeFilter, setTypeFilter] = useState('')
@@ -246,18 +708,29 @@ export default function Tracking() {
   const [showShiftDropdown, setShowShiftDropdown] = useState(false)
   const dateRef = useRef(null)
   const dateFp = useRef(null)
+  const dateBtnRef = useRef(null)
   const typeBtnRef = useRef(null)
   const shiftBtnRef = useRef(null)
 
   const fetchMatrix = () => {
+    setIsReady(false)
     setLoading(true)
+    const fetchStart = Date.now()
     const params = new URLSearchParams()
     params.append('date', dateFilter)
     params.append('shift', shiftFilter)
     if (typeFilter) params.append('type', typeFilter)
     fetch(`${API}/api/tracking/matrix?${params}`)
       .then(r => r.json())
-      .then(data => { setRows(Array.isArray(data) ? data : []); setLoading(false) })
+      .then(data => {
+        const elapsed = Date.now() - fetchStart
+        const remaining = Math.max(0, 400 - elapsed)
+        setTimeout(() => {
+          setRows(Array.isArray(data) ? data : [])
+          setLoading(false)
+          setTimeout(() => setIsReady(true), 50)
+        }, remaining)
+      })
       .catch(() => setLoading(false))
   }
 
@@ -278,6 +751,7 @@ export default function Tracking() {
       defaultDate: dateFilter,
       allowInput: true,
       disableMobile: true,
+      positionElement: dateBtnRef.current,
       onChange: (dates) => {
         setDateFilter(dates[0] ? dates[0].toISOString().split('T')[0] : new Date().toISOString().split('T')[0])
       },
@@ -304,9 +778,7 @@ export default function Tracking() {
 
   const displayed = rows.filter(r =>
     !searchQuery.trim() ||
-    r.asset_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.operator_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.project_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    r.asset_name?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const columns = [
@@ -324,8 +796,7 @@ export default function Tracking() {
     if (!row.has_p2h) return <span style={{ color: '#cbd5e1' }}>—</span>
     const val = row[col.key]
     if (col.key === 'inspect_result') return <ResultBadge text={val} />
-    if (col.key === 'project_name' || col.key === 'operator_name')
-      return highlightText(val || '-', searchQuery)
+
     return val || '-'
   }
 
@@ -375,7 +846,7 @@ export default function Tracking() {
 
               {/* Date picker */}
               <div className="trk-date-wrap">
-                <button className={`trk-filter-btn active`} onClick={() => dateFp.current?.open()}>
+                <button ref={dateBtnRef} className={`trk-filter-btn active`} onClick={() => dateFp.current?.open()}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   {dateFilter}
                 </button>
@@ -406,7 +877,7 @@ export default function Tracking() {
           <div className="trk-table-container">
             <div className="trk-super-header-wrap">
               <div className="trk-super-header">
-                P2H Unit — Shift {shiftFilter} &nbsp;·&nbsp; {dateFilter}
+                P2H Unit — {shiftFilter} &nbsp;·&nbsp; {dateFilter}
                 &nbsp;&nbsp;
                 <span style={{ fontWeight: 500, color: '#22c55e' }}>✓ {displayed.filter(r => r.has_p2h).length} submitted</span>
                 &nbsp;&nbsp;
@@ -422,7 +893,7 @@ export default function Tracking() {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayed.length === 0 ? (
+                  {!isReady ? null : displayed.length === 0 ? (
                     <tr>
                       <td colSpan={columns.length}>
                         <div className="trk-empty-state">
@@ -468,15 +939,7 @@ export default function Tracking() {
       )}
 
       {activeTab === 'hm' && (
-        <div className="trk-table-container" style={{ justifyContent: 'center', alignItems: 'center', display: 'flex' }}>
-          <div className="trk-empty-state">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            <p className="trk-empty-title">Hour Meter</p>
-            <p className="trk-empty-sub">Hour meter tracking data will be available here.</p>
-          </div>
-        </div>
+        <HourMeterTab types={types} />
       )}
     </div>
   )

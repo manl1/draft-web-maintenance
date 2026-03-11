@@ -9,6 +9,7 @@ const pageTitles = {
   '/assets': 'Assets',
   '/locations': 'Locations',
   '/tracking': 'Tracking',
+  '/dashboard': 'Dashboard',
 }
 
 function Layout() {
