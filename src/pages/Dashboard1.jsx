@@ -771,7 +771,7 @@ function InUseModal({ isOpen, onClose }) {
 }
 
 // ─── WO Incidents Modal (Maintenance Incidents heatmap click) ───
-function WoIncidentModal({ isOpen, onClose, monthLabel, yearMonth, assetId }) {
+function WoIncidentModal({ isOpen, onClose, monthLabel, yearMonth }) {
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -781,12 +781,11 @@ function WoIncidentModal({ isOpen, onClose, monthLabel, yearMonth, assetId }) {
     setClosing(false)
     setRows([])
     setLoading(true)
-    const url = `${API}/api/dashboard/wo-incidents/${yearMonth}${assetId ? `?assetId=${assetId}` : ''}`
-    fetch(url)
+    fetch(`${API}/api/dashboard/wo-incidents/${yearMonth}`)
       .then(r => r.json())
       .then(data => { setRows(Array.isArray(data) ? data : []); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [isOpen, yearMonth, assetId])
+  }, [isOpen, yearMonth])
 
   const handleClose = () => {
     setClosing(true)
@@ -1013,163 +1012,9 @@ const KpiIcons = {
   ),
 }
 
-function AssetDetailCard({ detail }) {
-  const criticalityColor = (c) => {
-    if (c === 'Critical') return '#ef4444'
-    if (c === 'High') return '#f59e0b'
-    if (c === 'Medium') return '#3b82f6'
-    return '#22c55e'
-  }
-
-  // ─── UBAH URUTAN DI SINI ─────────────────────────────────────
-  // Setiap objek: { label, value, isCriticality?, wide? }
-  // Ganti posisi baris-baris di bawah untuk mengatur ulang urutan kolom
-  const fields = [
-    { label: 'Tag Number',   value: detail.tag_number },
-    { label: 'Category',     value: detail.category },
-    { label: 'Type',         value: detail.asset_type_name },
-    { label: 'Model',        value: detail.model },
-    { label: 'Capacity',     value: detail.capacity },
-    { label: 'Criticality',  value: detail.criticality,   isCriticality: true },
-    { label: 'Expired Silo', value: detail.expired_date_silo ? String(detail.expired_date_silo).split('T')[0] : '—' },
-    { label: 'Remarks',      value: detail.asset_remarks, wide: true },
-  ]
-  // ─────────────────────────────────────────────────────────────
-
+function SectionCard({ title, subtitle, tag, children, action, right }) {
   return (
-    <div className="dash-card asset-detail-card">
-      <div className="asset-detail-header">
-        <div>
-          <div className="asset-detail-title">{detail.asset_name}</div>
-          <div className="asset-detail-sub">{detail.category} · {detail.asset_type_name}</div>
-        </div>
-        <span style={{
-          display: 'inline-block', padding: '5px 12px', borderRadius: '8px', flexShrink: 0,
-          fontSize: '12px', fontWeight: '700', color: 'white', textTransform: 'uppercase',
-          backgroundColor: statusBg(detail.asset_status)
-        }}>{detail.asset_status}</span>
-      </div>
-      <div className="asset-detail-grid">
-        {fields.filter(f => !f.wide).map((f, i) => (
-          <div key={i} className="asset-detail-box">
-            <div className="asset-detail-label">{f.label}</div>
-            {f.isCriticality ? (
-              <span style={{ display:'inline-block', width:'fit-content', padding:'3px 10px', borderRadius:'6px', fontSize:'12px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: criticalityColor(f.value) }}>{f.value || '—'}</span>
-            ) : (
-              <div className="asset-detail-value">{f.value || '—'}</div>
-            )}
-          </div>
-        ))}
-        {fields.filter(f => f.wide).map((f, i) => (
-          <div key={i} className="asset-detail-box asset-detail-wide">
-            <div className="asset-detail-label">{f.label}</div>
-            <div className="asset-detail-value">{f.value || '—'}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function AssetTrackingCard({ assetId, assetName }) {
-  const HM_MAX = 4000
-  const SHIFTS = ['Shift 1', 'Shift 2', 'Shift 3']
-  const [shiftIdx, setShiftIdx] = useState(0)
-  const [p2hData, setP2hData]   = useState(null)
-  const [hmData,  setHmData]    = useState(null)
-  const [loading, setLoading]   = useState(true)
-
-  useEffect(() => {
-    if (!assetId) return
-    setLoading(true)
-    Promise.all([
-      fetch(`${API}/api/dashboard/asset-tracking-p2h/${assetId}`).then(r => r.json()),
-      fetch(`${API}/api/dashboard/asset-tracking-hm/${assetId}`).then(r => r.json()),
-    ]).then(([p2h, hm]) => {
-      setP2hData(p2h)
-      setHmData(hm)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [assetId])
-
-  const totalHm  = hmData?.total_hm || 0
-  const hmPct    = Math.min((totalHm / HM_MAX) * 100, 100)
-  const hmColor  = hmPct >= 100 ? '#ef4444' : hmPct >= 70 ? '#f59e0b' : '#22c55e'
-  const hmLabel  = hmPct >= 100 ? 'bar-high' : hmPct >= 70 ? 'bar-med' : 'bar-low'
-
-  const currentShift = p2hData?.shifts?.[shiftIdx]
-
-  return (
-    <div className="dash-card asset-tracking-card">
-      <div className="dash-card-header">
-        <div>
-          <div className="dash-card-title">Asset Tracking</div>
-          <div className="dash-card-subtitle">P2H &amp; Hour Meter — {assetName}</div>
-        </div>
-      </div>
-      <div className="dash-card-body">
-        {loading ? (
-          <div className="dash-empty">Loading...</div>
-        ) : (
-          <div className="atrk-wrap">
-
-            {/* ── P2H SECTION ── */}
-            <div className="atrk-p2h-box rank-item">
-              <div className="atrk-p2h-content">
-                <div className="atrk-shift-label">P2H UNIT · {SHIFTS[shiftIdx]}</div>
-                <div className="atrk-asset-name">{p2hData?.asset_name || assetName}</div>
-              </div>
-
-              {/* Status icon + arrows on the right */}
-              <div className="atrk-right-group">
-                <div className={`atrk-status-icon ${currentShift?.submitted ? 'submitted' : 'pending'}`}>
-                  {currentShift?.submitted ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  )}
-                </div>
-                <button className="atrk-arrow" onClick={() => setShiftIdx(i => Math.max(i - 1, 0))} disabled={shiftIdx === 0}>‹</button>
-                <button className="atrk-arrow" onClick={() => setShiftIdx(i => Math.min(i + 1, 2))} disabled={shiftIdx === 2}>›</button>
-              </div>
-            </div>
-
-            {/* Shift dots */}
-            <div className="atrk-dots">
-              {SHIFTS.map((_, i) => (
-                <span
-                  key={i}
-                  className={`atrk-dot ${i === shiftIdx ? 'active' : ''} ${p2hData?.shifts?.[i]?.submitted ? 'done' : ''}`}
-                  onClick={() => setShiftIdx(i)}
-                />
-              ))}
-            </div>
-
-            {/* ── HOUR METER SECTION ── */}
-            <div className="atrk-hm-box rank-item">
-              <div className="atrk-hm-info">
-                <div className="atrk-shift-label">HOUR METER UTILIZATION</div>
-                <span className="rank-name">{p2hData?.asset_name || assetName}</span>
-                <span className="rank-type">{totalHm.toLocaleString()} / {HM_MAX.toLocaleString()} jam</span>
-              </div>
-              <div className="rank-bar" style={{ width: 80 }}>
-                <div className="rank-bar-fill" style={{ width: `${hmPct}%`, background: hmColor }} />
-              </div>
-              <span className="rank-score" style={{ color: hmColor, width: 44, fontSize: 12 }}>
-                {Math.round(hmPct)}%
-              </span>
-            </div>
-
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function SectionCard({ title, subtitle, tag, children, action, right, className }) {
-  return (
-    <div className={`dash-card${className ? ' ' + className : ''}`}>
+    <div className="dash-card">
       <div className="dash-card-header">
         <div>
           <div className="dash-card-title">{title}</div>
@@ -1227,19 +1072,11 @@ export default function Dashboard() {
   const [activeTab, setActiveTab]       = useState('asset')
   const [loading, setLoading]           = useState(true)
   const [showAssetModal, setShowAssetModal] = useState(false)
-  const [assetSearchQuery, setAssetSearchQuery] = useState('')
-  const [assetSearchResults, setAssetSearchResults] = useState([])
-  const [assetSearchOpen, setAssetSearchOpen] = useState(false)
-  const [assetSearchLoading, setAssetSearchLoading] = useState(false)
-  const [selectedAssetId, setSelectedAssetId] = useState(null)
-  const [assetDetail, setAssetDetail] = useState(null)
-  const [assetProductivityScore, setAssetProductivityScore] = useState(null)
-  const assetSearchRef = useRef(null)
   const [showMaintModal, setShowMaintModal] = useState(false)
   const [showDowntimeModal, setShowDowntimeModal] = useState(false)
   const [showUtilModal, setShowUtilModal] = useState(false)
   const [woDetailModal, setWoDetailModal] = useState({ open: false, assetId: null, assetName: '' })
-  const [woIncidentModal, setWoIncidentModal] = useState({ open: false, monthLabel: '', yearMonth: '', assetId: null })
+  const [woIncidentModal, setWoIncidentModal] = useState({ open: false, monthLabel: '', yearMonth: '' })
 
   // Fetch all dashboard data
   const fetchAll = useCallback(async (r) => {
@@ -1253,7 +1090,7 @@ export default function Dashboard() {
         fetch(`${API}/api/dashboard/kpi?range=${r}`).then(r => r.json()),
         fetch(`${API}/api/dashboard/asset-status`).then(r => r.json()),
         fetch(`${API}/api/dashboard/assets-list`).then(r => r.json()),
-        fetch(`${API}/api/dashboard/maintenance-heatmap${selectedAssetId ? `?assetId=${selectedAssetId}` : ''}`).then(r => r.json()),
+        fetch(`${API}/api/dashboard/maintenance-heatmap`).then(r => r.json()),
         fetch(`${API}/api/dashboard/productivity?range=${r}&limit=8`).then(r => r.json()),
       ])
       setKpi(kpiData)
@@ -1268,9 +1105,9 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }, [selectedAsset, selectedAssetId])
+  }, [selectedAsset])
 
-  useEffect(() => { fetchAll(range) }, [range, selectedAssetId])
+  useEffect(() => { fetchAll(range) }, [range])
 
   // Fetch maintenance-by-type separately when wo_type or range changes
   const fetchMaintCat = useCallback(async () => {
@@ -1292,11 +1129,10 @@ export default function Dashboard() {
 
   // Fetch daily maintenance chart — follows global range
   const fetchDailyChart = useCallback(async () => {
-    const url = `${API}/api/dashboard/maintenance-daily?range=${range}${selectedAssetId ? `&assetId=${selectedAssetId}` : ''}`
-    const res = await fetch(url)
+    const res = await fetch(`${API}/api/dashboard/maintenance-daily?range=${range}`)
     const data = await res.json()
     setDailyChart(Array.isArray(data) ? data : [])
-  }, [range, selectedAssetId])
+  }, [range])
 
   useEffect(() => { fetchDailyChart() }, [fetchDailyChart])
 
@@ -1310,40 +1146,6 @@ export default function Dashboard() {
       .then(setLocHistory)
       .catch(console.error)
   }, [selectedAsset])
-
-  useEffect(() => {
-    if (!selectedAssetId) { setAssetDetail(null); setAssetProductivityScore(null); return }
-    fetch(`${API}/api/dashboard/asset-detail/${selectedAssetId}`)
-      .then(r => r.json())
-      .then(data => setAssetDetail(data))
-      .catch(() => setAssetDetail(null))
-    fetch(`${API}/api/dashboard/asset-productivity-score/${selectedAssetId}?range=${range}`)
-      .then(r => r.json())
-      .then(data => setAssetProductivityScore(data))
-      .catch(() => setAssetProductivityScore(null))
-  }, [selectedAssetId, range])
-
-  // Asset search logic
-  useEffect(() => {
-    const handler = (e) => {
-      if (assetSearchRef.current && !assetSearchRef.current.contains(e.target)) {
-        setAssetSearchOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  useEffect(() => {
-    setAssetSearchLoading(true)
-    const timer = setTimeout(() => {
-      fetch(`${API}/api/dashboard/asset-search?q=${encodeURIComponent(assetSearchQuery)}`)
-        .then(r => r.json())
-        .then(data => { setAssetSearchResults(Array.isArray(data) ? data : []); setAssetSearchLoading(false) })
-        .catch(() => setAssetSearchLoading(false))
-    }, 200)
-    return () => clearTimeout(timer)
-  }, [assetSearchQuery])
 
   // Fetch detail table
   const fetchDetail = useCallback(async () => {
@@ -1378,26 +1180,6 @@ export default function Dashboard() {
       const dash  = total > 0 ? (row.total / total) * circ : 0
       const seg   = { ...row, dash, gap: circ - dash, offset, color }
       offset     -= dash
-      return seg
-    })
-  }
-
-  const productivityDonutSegments = () => {
-    if (!assetProductivityScore) return []
-    const s = assetProductivityScore
-    const circ = 2 * Math.PI * 35
-    const components = [
-      { label: 'P2H Score',    value: s.p2h_score,  color: '#6366f1', max: 40 },
-      { label: 'Hour Meter',   value: s.hm_score,   color: '#22c55e', max: 30 },
-      { label: 'WO Score',     value: s.wo_score,   color: '#f59e0b', max: 20 },
-      { label: 'Downtime',     value: s.dt_score,   color: '#ef4444', max: 10 },
-    ]
-    const total = 100
-    let offset = 55
-    return components.map(c => {
-      const dash = (c.value / total) * circ
-      const seg  = { ...c, dash, gap: circ - dash, offset }
-      offset    -= dash
       return seg
     })
   }
@@ -1464,7 +1246,6 @@ export default function Dashboard() {
             onClose={() => setWoIncidentModal(m => ({ ...m, open: false }))}
             monthLabel={woIncidentModal.monthLabel}
             yearMonth={woIncidentModal.yearMonth}
-            assetId={woIncidentModal.assetId}
           />
 
           {/* ── KPI CARDS ── */}
@@ -1507,64 +1288,11 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* ── ASSET SEARCH BOX ── */}
-          <div className="asset-search-wrap" ref={assetSearchRef}>
-            <div className="asset-search-box" onClick={() => setAssetSearchOpen(true)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              <input
-                className="asset-search-input"
-                type="text"
-                placeholder="Search asset name..."
-                value={assetSearchQuery}
-                onChange={e => { setAssetSearchQuery(e.target.value); setAssetSearchOpen(true) }}
-                onFocus={() => setAssetSearchOpen(true)}
-              />
-              {assetSearchQuery && (
-                <button className="asset-search-clear" onClick={(e) => { e.stopPropagation(); setAssetSearchQuery(''); setSelectedAssetId(null); setSelectedAsset(''); setAssetSearchOpen(false) }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              )}
-            </div>
-            {assetSearchOpen && (
-              <div className="asset-search-dropdown">
-                {assetSearchLoading ? (
-                  <div className="asset-search-item asset-search-empty">Loading...</div>
-                ) : assetSearchResults.length === 0 ? (
-                  <div className="asset-search-item asset-search-empty">No assets found</div>
-                ) : assetSearchResults.map(a => (
-                  <div
-                    key={a.asset_id}
-                    className="asset-search-item"
-                    onClick={() => {
-                      setAssetSearchQuery(a.asset_name)
-                      setSelectedAssetId(a.asset_id)
-                      setSelectedAsset(a.asset_id)
-                      setAssetSearchOpen(false)
-                    }}
-                  >
-                    <div className="asset-search-name">{a.asset_name}</div>
-                    <div className="asset-search-meta">
-                      <span className="asset-search-tag">{a.tag_number}</span>
-                      <span style={{
-                        display: 'inline-block', padding: '2px 7px', borderRadius: '5px',
-                        fontSize: '11px', fontWeight: '600', color: 'white', textTransform: 'uppercase',
-                        backgroundColor: statusBg(a.asset_status)
-                      }}>{a.asset_status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
 
           {/* ── ROW 3: Produktivitas + (Donut, Heatmap, Avg Downtime) ── */}
           <div className="dash-grid3">
 
-            {/* Productivity Ranking OR Asset Detail */}
-            {selectedAssetId && assetDetail ? (
-              <AssetDetailCard detail={assetDetail} />
-            ) : (
+            {/* Productivity Ranking */}
             <SectionCard
               title="Asset Productivity"
               subtitle={`Score based on active days & inspeksi P2H – ${range} hari`}
@@ -1592,42 +1320,11 @@ export default function Dashboard() {
                 </div>
               )}
             </SectionCard>
-            )}
 
             {/* Right column */}
             <div className="dash-col-right">
 
-              {/* Donut: Status OR Asset Productivity */}
-              {selectedAssetId && assetProductivityScore ? (
-                <SectionCard title="Asset Productivity" subtitle="Score breakdown for selected asset">
-                  <div className="donut-wrap">
-                    <svg width="110" height="110" viewBox="0 0 100 100">
-                      <circle cx="50" cy="50" r="35" fill="none" stroke="#1a1e2a" strokeWidth="16"/>
-                      {productivityDonutSegments().map((seg, i) => (
-                        <circle key={i}
-                          cx="50" cy="50" r="35"
-                          fill="none"
-                          stroke={seg.color}
-                          strokeWidth="16"
-                          strokeDasharray={`${seg.dash} ${seg.gap}`}
-                          strokeDashoffset={seg.offset}
-                        />
-                      ))}
-                      <text x="50" y="49" textAnchor="middle" fill="#1e293b" fontSize="12" fontWeight="700" fontFamily="monospace">{isNaN(assetProductivityScore.score) ? '?' : `${assetProductivityScore.score}%`}</text>
-                      <text x="50" y="61" textAnchor="middle" fill="#64748b" fontSize="7" fontFamily="sans-serif">SCORE</text>
-                    </svg>
-                    <div className="donut-legend">
-                      {productivityDonutSegments().map((seg, i) => (
-                        <div key={i} className="legend-row">
-                          <span className="legend-dot" style={{ background: seg.color }} />
-                          <span className="legend-label">{seg.label}</span>
-                          <span className="legend-val" style={{ color: seg.color }}>{isNaN(seg.value) ? '—' : Math.round(seg.value)}<span style={{fontSize:10,color:'#94a3b8'}}>/{seg.max}%</span></span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </SectionCard>
-              ) : (
+              {/* Donut: Status */}
               <SectionCard title="Asset Status" subtitle="Current status distribution">
                 <div className="donut-wrap">
                   <svg width="110" height="110" viewBox="0 0 100 100">
@@ -1642,7 +1339,7 @@ export default function Dashboard() {
                         strokeDashoffset={seg.offset}
                       />
                     ))}
-                    <text x="50" y="46" textAnchor="middle" fill="#1e293b" fontSize="13" fontWeight="700" fontFamily="monospace">{totalAssets}</text>
+                    <text x="50" y="46" textAnchor="middle" fill="#e2e8f0" fontSize="13" fontWeight="700" fontFamily="monospace">{totalAssets}</text>
                     <text x="50" y="59" textAnchor="middle" fill="#64748b" fontSize="7" fontFamily="sans-serif">TOTAL</text>
                   </svg>
                   <div className="donut-legend">
@@ -1656,13 +1353,11 @@ export default function Dashboard() {
                   </div>
                 </div>
               </SectionCard>
-              )}
 
               {/* Heatmap / Line Chart */}
               <SectionCard
                 title={heatmapPage === 0 ? 'Maintenance Incidents' : 'Daily Incident Trend'}
                 subtitle={heatmapPage === 0 ? 'WO count per month – 12 months' : `WO count per day – ${range} days`}
-                className={heatmapPage === 1 ? 'heatmap-linechart-card' : ''}
                 right={
                   <div className="heat-nav">
                     <button className="heat-nav-btn" onClick={() => setHeatmapPage(0)} disabled={heatmapPage === 0} title="Monthly Heatmap">‹</button>
@@ -1686,7 +1381,7 @@ export default function Dashboard() {
                           className={`heat-cell ${intensityClass(m.intensity)}`}
                           title={`${m.month_label}: ${m.total} insiden`}
                           style={{ cursor: 'pointer' }}
-                          onClick={() => setWoIncidentModal({ open: true, monthLabel: m.month_label, yearMonth: m.year_month, assetId: selectedAssetId || null })}
+                          onClick={() => setWoIncidentModal({ open: true, monthLabel: m.month_label, yearMonth: m.year_month })}
                         />
                       ))}
                     </div>
@@ -1701,8 +1396,7 @@ export default function Dashboard() {
                 )}
               </SectionCard>
 
-              {/* Avg Downtime per Kategori — hidden when asset selected */}
-              {!selectedAssetId && (
+              {/* Avg Downtime per Kategori */}
               <SectionCard
                 title="Avg. Downtime per Category"
                 subtitle="Average downtime hours per incident"
@@ -1759,11 +1453,11 @@ export default function Dashboard() {
                   </div>
                 )}
               </SectionCard>
-              )}
 
             </div>
           </div>
 
+          {/* ── ROW 2: Lokasi History + Maintenance per Kategori ── */}
           <div className="dash-grid2">
 
             {/* Location History */}
@@ -1831,10 +1525,7 @@ export default function Dashboard() {
               </div>
             </SectionCard>
 
-            {/* Maintenance per Category OR Asset Tracking */}
-            {selectedAssetId ? (
-              <AssetTrackingCard assetId={selectedAssetId} assetName={assetSearchQuery} />
-            ) : (
+            {/* Maintenance per Category */}
             <SectionCard
               title="Maintenance by Type"
               subtitle="Work order frequency by type"
@@ -1887,7 +1578,6 @@ export default function Dashboard() {
                 </>
               )}
             </SectionCard>
-            )}
 
           </div>
 
