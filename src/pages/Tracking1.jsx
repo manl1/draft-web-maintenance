@@ -294,14 +294,13 @@ function UtilizationBadge({ value, max }) {
 }
 
 // ===== Hour Meter Tab =====
-function HourMeterTab({ types, autoExpandAssetName = '' }) {
+function HourMeterTab({ types }) {
   const HM_MAX = 4000
 
   // ---- Tabel utama state ----
   const [hmRows, setHmRows] = useState([])
   const [hmLoading, setHmLoading] = useState(false)
   const [hmReady, setHmReady] = useState(false)
-  const autoExpandHmDone = useRef(false)
   const [hmSearch, setHmSearch] = useState('')
   const [hmTypeFilter, setHmTypeFilter] = useState('')
   const [hmSortOrder, setHmSortOrder] = useState(null)
@@ -352,23 +351,6 @@ function HourMeterTab({ types, autoExpandAssetName = '' }) {
 
   useEffect(() => { fetchHourMeter() }, [])
   useEffect(() => { fetchHourMeter() }, [hmTypeFilter])
-
-  // Auto-expand dari navigasi Dashboard (Hour Meter)
-  useEffect(() => {
-    if (!autoExpandAssetName || !hmReady || hmRows.length === 0 || autoExpandHmDone.current) return
-    autoExpandHmDone.current = true
-    const found = hmRows.find(r => r.asset_name === autoExpandAssetName)
-    if (found) {
-      setExpandedHmRows(prev => ({ ...prev, [autoExpandAssetName]: true }))
-      fetchLog(autoExpandAssetName, () => {
-        setSlideOpenHm(prev => ({ ...prev, [autoExpandAssetName]: true }))
-        setTimeout(() => {
-          const el = document.querySelector(`[data-hm-asset="${CSS.escape(autoExpandAssetName)}"]`)
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        }, 200)
-      })
-    }
-  }, [hmReady, hmRows])
 
   // ---- Fetch log for one asset ----
   const fetchLog = (assetName, onDone) => {
@@ -645,7 +627,6 @@ function HourMeterTab({ types, autoExpandAssetName = '' }) {
                 return (
                   <>
                     <tr key={row.asset_id} className={`trk-row ${isExpanded ? 'expanded' : ''}`}
-                      data-hm-asset={row.asset_name}
                       onClick={() => toggleHmRow(row.asset_name)}>
                       <td className="trk-td-expand">
                         <span className={`trk-expand-arrow ${isExpanded ? 'open' : ''}`}>
@@ -737,13 +718,9 @@ export default function Tracking() {
   // Auto-expand dari navigasi Dashboard
   useEffect(() => {
     const state = location.state
-    if (!state?.autoExpand && !state?.autoExpandHm || autoExpandDone.current) return
+    if (!state?.autoExpand || autoExpandDone.current) return
     autoExpandDone.current = true
-    if (state.autoExpandHm) {
-      setActiveTab('hm')
-    } else if (state.shift) {
-      setShiftFilter(state.shift)
-    }
+    if (state.shift) setShiftFilter(state.shift)
   }, [location.state])
 
   const fetchMatrix = () => {
@@ -1004,10 +981,7 @@ export default function Tracking() {
       )}
 
       {activeTab === 'hm' && (
-        <HourMeterTab
-          types={types}
-          autoExpandAssetName={location.state?.autoExpandHm ? (location.state?.assetName || '') : ''}
-        />
+        <HourMeterTab types={types} />
       )}
     </div>
   )

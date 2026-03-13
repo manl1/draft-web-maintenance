@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './Dashboard.css'
 
 const API = 'http://localhost:3000'
@@ -1071,7 +1072,7 @@ function AssetDetailCard({ detail }) {
   )
 }
 
-function AssetTrackingCard({ assetId, assetName }) {
+function AssetTrackingCard({ assetId, assetName, navigate }) {
   const HM_MAX = 4000
   const SHIFTS = ['Shift 1', 'Shift 2', 'Shift 3']
   const [shiftIdx, setShiftIdx] = useState(0)
@@ -1115,13 +1116,27 @@ function AssetTrackingCard({ assetId, assetName }) {
 
             {/* ── P2H SECTION ── */}
             <div className="atrk-p2h-box rank-item">
-              <div className="atrk-p2h-content">
-                <div className="atrk-shift-label">P2H UNIT · {SHIFTS[shiftIdx]}</div>
-                <div className="atrk-asset-name">{p2hData?.asset_name || assetName}</div>
-              </div>
+              {/* Clickable area: content + status icon only (excludes pagination arrows) */}
+              <div
+                className={`atrk-p2h-clickable${currentShift?.submitted ? ' is-clickable' : ''}`}
+                onClick={() => {
+                  if (!currentShift?.submitted) return
+                  navigate('/tracking', {
+                    state: {
+                      assetId,
+                      assetName: p2hData?.asset_name || assetName,
+                      shift: SHIFTS[shiftIdx],
+                      autoExpand: true,
+                    }
+                  })
+                }}
+              >
+                <div className="atrk-p2h-content">
+                  <div className="atrk-shift-label">P2H UNIT · {SHIFTS[shiftIdx]}</div>
+                  <div className="atrk-asset-name">{p2hData?.asset_name || assetName}</div>
+                </div>
 
-              {/* Status icon + arrows on the right */}
-              <div className="atrk-right-group">
+                {/* Status icon */}
                 <div className={`atrk-status-icon ${currentShift?.submitted ? 'submitted' : 'pending'}`}>
                   {currentShift?.submitted ? (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1129,8 +1144,20 @@ function AssetTrackingCard({ assetId, assetName }) {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   )}
                 </div>
-                <button className="atrk-arrow" onClick={() => setShiftIdx(i => Math.max(i - 1, 0))} disabled={shiftIdx === 0}>‹</button>
-                <button className="atrk-arrow" onClick={() => setShiftIdx(i => Math.min(i + 1, 2))} disabled={shiftIdx === 2}>›</button>
+              </div>
+
+              {/* Pagination arrows — outside clickable area, no hover highlight on box */}
+              <div className="atrk-arrows-group">
+                <button
+                  className="atrk-arrow"
+                  onClick={(e) => { e.stopPropagation(); setShiftIdx(i => Math.max(i - 1, 0)) }}
+                  disabled={shiftIdx === 0}
+                >‹</button>
+                <button
+                  className="atrk-arrow"
+                  onClick={(e) => { e.stopPropagation(); setShiftIdx(i => Math.min(i + 1, 2)) }}
+                  disabled={shiftIdx === 2}
+                >›</button>
               </div>
             </div>
 
@@ -1146,7 +1173,17 @@ function AssetTrackingCard({ assetId, assetName }) {
             </div>
 
             {/* ── HOUR METER SECTION ── */}
-            <div className="atrk-hm-box rank-item">
+            <div
+              className="atrk-hm-box rank-item atrk-hm-box--clickable"
+              style={{ cursor: 'pointer' }}
+              onClick={() => navigate('/tracking', {
+                state: {
+                  autoExpandHm: true,
+                  assetId,
+                  assetName: p2hData?.asset_name || assetName,
+                }
+              })}
+            >
               <div className="atrk-hm-info">
                 <div className="atrk-shift-label">HOUR METER UTILIZATION</div>
                 <span className="rank-name">{p2hData?.asset_name || assetName}</span>
@@ -1224,6 +1261,7 @@ export default function Dashboard() {
   const [categories, setCategories]     = useState([])
   const [sortOrder, setSortOrder]       = useState(null)  // null | 'asc' | 'desc'
 
+  const navigate = useNavigate()
   const [activeTab, setActiveTab]       = useState('asset')
   const [loading, setLoading]           = useState(true)
   const [showAssetModal, setShowAssetModal] = useState(false)
@@ -1240,6 +1278,8 @@ export default function Dashboard() {
   const [showUtilModal, setShowUtilModal] = useState(false)
   const [woDetailModal, setWoDetailModal] = useState({ open: false, assetId: null, assetName: '' })
   const [woIncidentModal, setWoIncidentModal] = useState({ open: false, monthLabel: '', yearMonth: '', assetId: null })
+  const [woInlineRows, setWoInlineRows] = useState([])
+  const [woInlineLoading, setWoInlineLoading] = useState(false)
 
   // Fetch all dashboard data
   const fetchAll = useCallback(async (r) => {
@@ -1312,7 +1352,7 @@ export default function Dashboard() {
   }, [selectedAsset])
 
   useEffect(() => {
-    if (!selectedAssetId) { setAssetDetail(null); setAssetProductivityScore(null); return }
+    if (!selectedAssetId) { setAssetDetail(null); setAssetProductivityScore(null); setWoInlineRows([]); return }
     fetch(`${API}/api/dashboard/asset-detail/${selectedAssetId}`)
       .then(r => r.json())
       .then(data => setAssetDetail(data))
@@ -1321,6 +1361,12 @@ export default function Dashboard() {
       .then(r => r.json())
       .then(data => setAssetProductivityScore(data))
       .catch(() => setAssetProductivityScore(null))
+    // Fetch WO detail inline untuk tabel bawah
+    setWoInlineLoading(true)
+    fetch(`${API}/api/dashboard/asset-wo-detail/${selectedAssetId}`)
+      .then(r => r.json())
+      .then(data => { setWoInlineRows(Array.isArray(data) ? data : []); setWoInlineLoading(false) })
+      .catch(() => setWoInlineLoading(false))
   }, [selectedAssetId, range])
 
   // Asset search logic
@@ -1575,7 +1621,17 @@ export default function Dashboard() {
               ) : (
                 <div className="rank-list">
                   {productivity.map((row) => (
-                    <div key={row.asset_id} className="rank-item">
+                    <div
+                      key={row.asset_id}
+                      className="rank-item"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        setAssetSearchQuery(row.asset_name)
+                        setSelectedAssetId(row.asset_id)
+                        setSelectedAsset(row.asset_id)
+                        setAssetSearchOpen(false)
+                      }}
+                    >
                       <span className="rank-num rank-rest">
                         {String(row.rank).padStart(2, '0')}
                       </span>
@@ -1768,6 +1824,7 @@ export default function Dashboard() {
 
             {/* Location History */}
             <SectionCard
+              className="loc-history-card"
               title="Asset Location History"
               subtitle="Location transfer history per asset"
               action={
@@ -1803,7 +1860,7 @@ export default function Dashboard() {
                 </>
               }
             >
-              <div className="loc-timeline" style={{ maxHeight: selectedAsset === '' ? '240px' : '320px', paddingRight: '4px' }}>
+              <div className="loc-timeline" style={{ maxHeight: '260px', overflowY: 'auto', paddingRight: '4px' }}>
                 {locHistory.length === 0 ? (
                   <div className="dash-empty">No location transfer data</div>
                 ) : locHistory.map((row, i) => (
@@ -1833,7 +1890,7 @@ export default function Dashboard() {
 
             {/* Maintenance per Category OR Asset Tracking */}
             {selectedAssetId ? (
-              <AssetTrackingCard assetId={selectedAssetId} assetName={assetSearchQuery} />
+              <AssetTrackingCard assetId={selectedAssetId} assetName={assetSearchQuery} navigate={navigate} />
             ) : (
             <SectionCard
               title="Maintenance by Type"
@@ -1894,8 +1951,11 @@ export default function Dashboard() {
           {/* ── ROW 5: Detail Table ── */}
           <SectionCard
             title="Asset Maintenance History Detail"
-            subtitle="WO frequency, total downtime, and productivity score"
-            action={
+            subtitle={selectedAssetId
+              ? `Work order history — ${assetSearchQuery}`
+              : "WO frequency, total downtime, and productivity score"
+            }
+            action={!selectedAssetId ? (
               <div className="detail-filters">
                 <button
                   ref={catBtnRef}
@@ -1926,8 +1986,80 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
-            }
+            ) : null}
           >
+            {selectedAssetId ? (
+              /* ── Inline WO Detail (saat asset dipilih) ── */
+              <div className="detail-table-wrap">
+                {woInlineLoading ? (
+                  <div className="detail-empty">Loading...</div>
+                ) : woInlineRows.length === 0 ? (
+                  <div className="detail-empty">No work orders found for this asset.</div>
+                ) : (
+                  <table className="detail-table wo-inline-table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Planned Start</th>
+                        <th>Planned Finish</th>
+                        <th>Actual Start</th>
+                        <th>Actual Finish</th>
+                        <th>Downtime</th>
+                        <th>Running Test</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {woInlineRows.map((r, i) => {
+                        const fmtDate = (val) => { if (!val) return '—'; const s = String(val).split('T')[0]; return s === '0000-00-00' ? '—' : s }
+                        const woTypeBg = (t) => t === 'Corrective' ? '#ef4444' : '#3b82f6'
+                        const priorityBg = (p) => p === 'High' ? '#ef4444' : p === 'Medium' ? '#f59e0b' : '#22c55e'
+                        const woStatusBg = (s) => s === 'Completed' ? '#22c55e' : s === 'In Progress' ? '#3b82f6' : s === 'Pending' ? '#f59e0b' : '#94a3b8'
+                        const runningTestBg = (v) => v === 'Pass' ? '#22c55e' : v === 'Ongoing' ? '#3b82f6' : v === 'Denied' ? '#ef4444' : '#94a3b8'
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td>
+                              <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: woTypeBg(r.wo_type) }}>
+                                {r.wo_type}
+                              </span>
+                            </td>
+                            <td style={{ fontSize:12, color:'#475569', minWidth:140 }}>{r.wo_description || '—'}</td>
+                            <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.planned_start)}</td>
+                            <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.planned_finish)}</td>
+                            <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.actual_start)}</td>
+                            <td style={{ whiteSpace:'nowrap', fontSize:13, color:'#64748b' }}>{fmtDate(r.actual_finish)}</td>
+                            <td style={{ whiteSpace:'nowrap', fontSize:13, fontWeight:600, color:'#f59e0b' }}>
+                              {r.downtime_hours && r.downtime_hours !== '00:00:00' ? r.downtime_hours.substring(0,5) : '—'}
+                            </td>
+                            <td>
+                              {r.running_test ? (
+                                <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: runningTestBg(r.running_test) }}>
+                                  {r.running_test}
+                                </span>
+                              ) : '—'}
+                            </td>
+                            <td>
+                              <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: woStatusBg(r.wo_status) }}>
+                                {r.wo_status}
+                              </span>
+                            </td>
+                            <td>
+                              <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'6px', fontSize:'11px', fontWeight:'600', color:'white', textTransform:'uppercase', backgroundColor: priorityBg(r.priority) }}>
+                                {r.priority}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            ) : (
+              /* ── Summary Table (saat tidak ada asset dipilih) ── */
+              <>
             <div className="detail-table-wrap">
               <table className="detail-table">
                 <thead>
@@ -2013,6 +2145,8 @@ export default function Dashboard() {
                 >Next →</button>
               </div>
             </div>
+              </>
+            )}
           </SectionCard>
 
             </>

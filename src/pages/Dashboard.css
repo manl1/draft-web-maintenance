@@ -331,10 +331,32 @@
 }
 
 /* ─── Location Timeline ───────────────────────────────────── */
+.loc-history-card {
+  height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+
+.loc-history-card .dash-card-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 12px;
+}
+
+.loc-history-card .loc-timeline {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+
 .loc-timeline {
   display: flex;
   flex-direction: column;
-  max-height: 320px;
+  max-height: 260px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #e2e8f0 transparent;
@@ -1354,7 +1376,8 @@
 .asset-search-wrap {
   position: relative;
   width: 35%;
-  margin-bottom: 16px;
+  margin-top: 16px;
+  margin-bottom: 2px;
 }
 .asset-search-box {
   display: flex;
@@ -1451,7 +1474,33 @@
   text-transform: uppercase; letter-spacing: 0.06em;
 }
 .atrk-p2h-box {
-  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  display: flex; align-items: center; gap: 0; padding: 0;
+  overflow: hidden;
+}
+/* Override rank-item hover — box itself should NOT highlight on hover */
+.atrk-p2h-box.rank-item:hover {
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+/* Clickable area (content + status icon): gets its own hover */
+.atrk-p2h-clickable {
+  display: flex; align-items: center; gap: 10px;
+  flex: 1; min-width: 0;
+  padding: 12px 10px 12px 14px;
+  border-radius: 8px 0 0 8px;
+  transition: background-color 0.15s;
+}
+.atrk-p2h-clickable.is-clickable {
+  cursor: pointer;
+}
+.atrk-p2h-clickable.is-clickable:hover {
+  background-color: #f5f5ff;
+}
+/* Arrows group — sits outside clickable, no hover on box */
+.atrk-arrows-group {
+  display: flex; align-items: center; gap: 4px;
+  flex-shrink: 0;
+  padding: 12px 10px 12px 4px;
 }
 .atrk-arrow {
   background: none; border: 1px solid #e2e8f0; border-radius: 6px;
@@ -1490,13 +1539,23 @@
 .atrk-dot.active { background: #6366f1; transform: scale(1.2); }
 .atrk-dot.done   { background: #22c55e; }
 .atrk-dot.active.done { background: #6366f1; }
-.atrk-right-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+/* atrk-right-group replaced by atrk-arrows-group (see above) */
+
+/* WO Inline table — horizontal scroll when asset selected */
+.wo-inline-table {
+  width: max-content;
+  min-width: 100%;
+}
+.detail-table-wrap {
+  overflow-x: auto;
 }
 .atrk-hm-box { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+.atrk-hm-box--clickable { transition: background-color 0.15s; }
+.atrk-hm-box--clickable:hover {
+  background-color: #f5f5ff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
 .atrk-hm-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 
 /* ── Asset Detail Card ── */
