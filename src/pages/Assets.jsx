@@ -3,7 +3,7 @@ import flatpickr from 'flatpickr'
 import 'flatpickr/dist/flatpickr.min.css'
 import './Assets.css'
 
-const API = 'http://localhost:3000'
+const API = ''
 
 // ===== Filter Sidebar =====
 function AssetFilterSidebar({ isOpen, onClose, onApply }) {

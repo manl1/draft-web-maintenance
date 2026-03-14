@@ -4,7 +4,7 @@ import flatpickr from 'flatpickr'
 import 'flatpickr/dist/flatpickr.min.css'
 import './Tracking.css'
 
-const API = 'http://localhost:3000'
+const API = ''
 
 // ===== Badge =====
 function Badge({ text, color }) {

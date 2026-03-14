@@ -3,7 +3,7 @@ import flatpickr from 'flatpickr'
 import 'flatpickr/dist/flatpickr.min.css'
 import './Locations.css'
 
-const API = 'http://localhost:3000'
+const API = ''
 
 // ===== Add Location Modal =====
 function AddLocationModal({ isOpen, onClose, onSuccess }) {

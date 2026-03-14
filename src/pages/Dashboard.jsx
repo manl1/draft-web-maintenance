@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './Dashboard.css'
 
-const API = 'http://localhost:3000'
+const API = ''
 
 // ─── Helpers ───────────────────────────────────────────────
 const fmt = (n) => Number(n || 0).toLocaleString('id-ID')
